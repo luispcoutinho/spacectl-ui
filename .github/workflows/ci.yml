@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Build universal app
+        run: ./build.sh
+
+      - name: Verify bundle
+        run: |
+          codesign --verify --strict SpaceliftGUI.app
+          archs=$(lipo -archs SpaceliftGUI.app/Contents/MacOS/SpaceliftGUI)
+          echo "architectures: $archs"
+          [[ "$archs" == *arm64* && "$archs" == *x86_64* ]]
