@@ -7,4 +7,4 @@ Contributions are welcome: bug reports, ideas and pull requests.
 - **Scope:** the app is read-only and shells out to `spacectl`. Features that change Spacelift state are out of scope.
 - **License:** by contributing you agree your work is released under the [MIT License](LICENSE).
 
-Releases are cut by tagging `vX.Y.Z` where the tag matches the `VERSION` file.
+Releases are automatic: merging a change to the `VERSION` file publishes `vX.Y.Z` as a GitHub Release.

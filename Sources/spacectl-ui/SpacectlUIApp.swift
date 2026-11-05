@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct SpaceliftGUIApp: App {
+struct SpacectlUIApp: App {
     private let model = StacksViewModel()
 
     var body: some Scene {

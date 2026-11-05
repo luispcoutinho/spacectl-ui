@@ -1,16 +1,22 @@
 name: Release
 
-# Push a tag like v0.2.0 to publish a GitHub Release with the zip.
-# "Run workflow" (manual) does a dry run: it builds the zip and attaches it to the run, no release.
+# Merging a change to VERSION on main publishes a GitHub Release named v<VERSION> (the tag is created
+# with it). Nothing happens if that tag already exists. "Run workflow" (manual) is a dry run: it
+# builds the zip and attaches it to the run, without a release.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths: [VERSION]
   workflow_dispatch:
 
 permissions:
-  contents: write       # create the release
+  contents: write       # create the tag and release
   id-token: write       # build provenance attestation
   attestations: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -18,35 +24,43 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Tag must match VERSION
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Resolve version
+        id: v
         run: |
-          [[ "${GITHUB_REF_NAME}" == "v$(cat VERSION)" ]] || {
-            echo "tag ${GITHUB_REF_NAME} does not match VERSION v$(cat VERSION)"; exit 1; }
+          tag="v$(cat VERSION)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]] && git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists, nothing to release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build package
+        if: steps.v.outputs.skip != 'true'
         run: ./build.sh dist
 
       - name: Checksum
+        if: steps.v.outputs.skip != 'true'
         run: |
           cd dist
-          shasum -a 256 SpaceliftGUI-*.zip > SHA256SUMS
+          shasum -a 256 spacectl-ui-*.zip > SHA256SUMS
           cat SHA256SUMS
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.v.outputs.skip != 'true'
         with:
-          name: SpaceliftGUI
+          name: spacectl-ui
           path: dist/*
 
       # Provenance proves the zip came from this workflow. Private repos need a paid plan for it.
       - name: Attest build provenance
-        if: ${{ !github.event.repository.private }}
+        if: ${{ steps.v.outputs.skip != 'true' && !github.event.repository.private }}
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-path: dist/SpaceliftGUI-*.zip
+          subject-path: dist/spacectl-ui-*.zip
 
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: ${{ steps.v.outputs.skip != 'true' && github.event_name == 'push' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/SpaceliftGUI-*.zip dist/SHA256SUMS --generate-notes --title "$GITHUB_REF_NAME"
+          TAG: ${{ steps.v.outputs.tag }}
+        run: gh release create "$TAG" dist/spacectl-ui-*.zip dist/SHA256SUMS --target "$GITHUB_SHA" --generate-notes --title "$TAG"

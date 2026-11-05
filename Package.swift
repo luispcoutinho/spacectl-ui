@@ -2,9 +2,9 @@
 import PackageDescription
 
 let package = Package(
-    name: "SpaceliftGUI",
+    name: "spacectl-ui",
     platforms: [.macOS(.v14)],
     targets: [
-        .executableTarget(name: "SpaceliftGUI", path: "Sources/SpaceliftGUI")
+        .executableTarget(name: "spacectl-ui", path: "Sources/spacectl-ui")
     ]
 )
