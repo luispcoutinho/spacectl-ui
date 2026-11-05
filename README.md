@@ -52,7 +52,7 @@ Needs the Swift toolchain (Xcode or Command Line Tools), no Xcode project.
 ./build.sh dist     # also writes dist/spacectl-ui-<version>.zip
 ```
 
-To release: bump `VERSION`, merge, then push a tag `vX.Y.Z` that matches it. The Release workflow builds the zip and publishes it.
+To release: bump `VERSION` in a PR and merge it. The Release workflow builds the zip and publishes it as the GitHub Release `v<VERSION>` (the tag is created with it).
 
 ## Contributing and license
 
