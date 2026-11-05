@@ -30,12 +30,12 @@ jobs:
       - name: Checksum
         run: |
           cd dist
-          shasum -a 256 SpaceliftGUI-*.zip > SHA256SUMS
+          shasum -a 256 spacectl-ui-*.zip > SHA256SUMS
           cat SHA256SUMS
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: SpaceliftGUI
+          name: spacectl-ui
           path: dist/*
 
       # Provenance proves the zip came from this workflow. Private repos need a paid plan for it.
@@ -43,10 +43,10 @@ jobs:
         if: ${{ !github.event.repository.private }}
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-path: dist/SpaceliftGUI-*.zip
+          subject-path: dist/spacectl-ui-*.zip
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/SpaceliftGUI-*.zip dist/SHA256SUMS --generate-notes --title "$GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" dist/spacectl-ui-*.zip dist/SHA256SUMS --generate-notes --title "$GITHUB_REF_NAME"

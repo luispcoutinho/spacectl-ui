@@ -21,12 +21,12 @@ The app looks for `spacectl` in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local
 
 ## Install
 
-1. Download the zip from the [Releases](../../releases) page (check it against `SHA256SUMS`), unzip, and drag `SpaceliftGUI.app` to `/Applications`.
+1. Download the zip from the [Releases](../../releases) page (check it against `SHA256SUMS`), unzip, and drag `spacectl-ui.app` to `/Applications`.
 2. The app is not notarized (ad-hoc signed), so macOS blocks the first launch. Clear the
    quarantine flag once:
 
    ```bash
-   xattr -dr com.apple.quarantine /Applications/SpaceliftGUI.app
+   xattr -dr com.apple.quarantine /Applications/spacectl-ui.app
    ```
 
    Alternatively: try to open it, then System Settings > Privacy & Security > "Open Anyway".
@@ -48,8 +48,8 @@ The app looks for `spacectl` in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local
 Needs the Swift toolchain (Xcode or Command Line Tools), no Xcode project.
 
 ```bash
-./build.sh          # builds SpaceliftGUI.app (universal)
-./build.sh dist     # also writes dist/SpaceliftGUI-<version>.zip
+./build.sh          # builds spacectl-ui.app (universal)
+./build.sh dist     # also writes dist/spacectl-ui-<version>.zip
 ```
 
 To release: bump `VERSION`, merge, then push a tag `vX.Y.Z` that matches it. The Release workflow builds the zip and publishes it.

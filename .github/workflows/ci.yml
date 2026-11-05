@@ -24,7 +24,7 @@ jobs:
 
       - name: Verify bundle
         run: |
-          codesign --verify --strict SpaceliftGUI.app
-          archs=$(lipo -archs SpaceliftGUI.app/Contents/MacOS/SpaceliftGUI)
+          codesign --verify --strict spacectl-ui.app
+          archs=$(lipo -archs spacectl-ui.app/Contents/MacOS/spacectl-ui)
           echo "architectures: $archs"
           [[ "$archs" == *arm64* && "$archs" == *x86_64* ]]

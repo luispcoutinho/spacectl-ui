@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build the SwiftUI app with SwiftPM and wrap it into SpaceliftGUI.app (no Xcode project needed).
-# Usage: ./build.sh          build a universal (arm64 + x86_64) SpaceliftGUI.app
-#        ./build.sh dist     also create dist/SpaceliftGUI-<version>.zip for sharing
+# Build the SwiftUI app with SwiftPM and wrap it into spacectl-ui.app (no Xcode project needed).
+# Usage: ./build.sh          build a universal (arm64 + x86_64) spacectl-ui.app
+#        ./build.sh dist     also create dist/spacectl-ui-<version>.zip for sharing
 set -euo pipefail
 cd "$(dirname "$0")"
 
 version=$(cat VERSION)
-app=SpaceliftGUI.app
+app=spacectl-ui.app
 
 # Both triples share one output dir, so copy each binary out before the next build overwrites it.
 tmp=$(mktemp -d)
@@ -14,13 +14,13 @@ trap 'rm -rf "$tmp"' EXIT
 bins=()
 for arch in arm64 x86_64; do
   swift build -c release --triple "$arch-apple-macosx14.0"
-  cp "$(swift build -c release --triple "$arch-apple-macosx14.0" --show-bin-path)/SpaceliftGUI" "$tmp/$arch"
+  cp "$(swift build -c release --triple "$arch-apple-macosx14.0" --show-bin-path)/spacectl-ui" "$tmp/$arch"
   bins+=("$tmp/$arch")
 done
 
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS"
-lipo -create "${bins[@]}" -output "$app/Contents/MacOS/SpaceliftGUI"
+lipo -create "${bins[@]}" -output "$app/Contents/MacOS/spacectl-ui"
 
 # App icon: round the source PNG, then build the .icns with sips + iconutil.
 mkdir -p "$app/Contents/Resources"
@@ -38,7 +38,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>Spacelift Stacks</string>
-  <key>CFBundleExecutable</key><string>SpaceliftGUI</string>
+  <key>CFBundleExecutable</key><string>spacectl-ui</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleIdentifier</key><string>io.github.luispcoutinho.spacectl-ui</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -51,10 +51,10 @@ PLIST
 
 # Ad-hoc signature: no Developer ID, so teammates must clear quarantine once (see README).
 codesign --force --sign - "$app" >/dev/null 2>&1 || echo "warning: codesign failed (app may still run)"
-echo "built: $(pwd)/$app ($(lipo -archs "$app/Contents/MacOS/SpaceliftGUI"))"
+echo "built: $(pwd)/$app ($(lipo -archs "$app/Contents/MacOS/spacectl-ui"))"
 
 if [[ "${1:-}" == "dist" ]]; then
-  out="dist/SpaceliftGUI-$version"
+  out="dist/spacectl-ui-$version"
   rm -rf dist
   mkdir -p "$out"
   cp -R "$app" "$out/"
