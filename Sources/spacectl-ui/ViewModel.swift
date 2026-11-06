@@ -39,6 +39,7 @@ final class StacksViewModel {
     var logPhase = ""
     var logRunID: String?          // chosen in Run history or the logs header; defaults to the latest run
     var autoscroll = true
+    var runFilter: RunFilter = .all
     var detailsRunID: String?      // run whose details popover is open in Run history
 
     // Selection and per-stack data, each loaded on demand
@@ -52,6 +53,23 @@ final class StacksViewModel {
     // Sidebar: search results or previously opened stacks (behaviour lives in Recents.swift)
     var sidebarMode: SidebarMode = .search
     var recents: [RecentStack] = RecentStack.load()
+
+    // Actions that change Spacelift state (behaviour lives in Trigger.swift). Off until the user opts in.
+    var actionsEnabled = UserDefaults.standard.bool(forKey: "actionsEnabled") {
+        didSet {
+            UserDefaults.standard.set(actionsEnabled, forKey: "actionsEnabled")
+            if !actionsEnabled { stopBatch(); if sidebarMode == .trigger { sidebarMode = .search } }
+        }
+    }
+    var pendingAction: PendingAction?
+    var actionBusy = false
+    var actionError: String?
+    var triggerSelection = Set<String>()
+    var triggerBatch: [TriggerItem] = []
+    var triggerRunning = false
+    var triggerSheet = false
+    var triggerPhrase = ""
+    @ObservationIgnored var triggerTask: Task<Void, Never>?
 
     // ⌘K command palette (behaviour lives in CommandPalette.swift)
     var paletteOpen = false
@@ -68,7 +86,8 @@ final class StacksViewModel {
     private var tasks: [Task<Void, Never>] = []
 
     var spacectlMissing: Bool { Spacectl.locate() == nil }
-    var latestRun: Run? { runs.value?.first }
+    /// The newest tracked run (what was actually deployed); proposed and drift runs never take its place.
+    var latestRun: Run? { runs.value?.first { $0.kind == .tracked } ?? runs.value?.first }
     var effectiveRunID: String? { logRunID ?? latestRun?.id }
 
     // MARK: Search
@@ -124,6 +143,7 @@ final class StacksViewModel {
         guard let id = selectedID else { return }
         // Every tab's header shows the live state, which also covers stacks opened from Recent.
         load(\.stack, id) { try await Spacectl.stackDetail(id: id) }
+        if actionsEnabled { loadRuns(id) }   // the header's Trigger button needs to know whether the stack ever ran
         switch tab {
         case .overview, .history, .logs, .live:
                            loadRuns(id)

@@ -4,6 +4,7 @@ import Foundation
 enum SidebarMode: String, CaseIterable, Identifiable {
     case search = "Search"
     case recent = "Recent"
+    case trigger = "Trigger"   // only offered when actions are enabled
     var id: String { rawValue }
 }
 

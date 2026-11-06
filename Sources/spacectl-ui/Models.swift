@@ -38,6 +38,26 @@ struct Stack: Decodable, Identifiable, Hashable {
     var AttachedContexts: [ContextRef]?
     var AttachedPolicies: [PolicyRef]?
     var VendorConfig: VendorConfig?
+    var canWrite: Bool?
+    var Blocker: BlockerInfo?
+
+    /// A run is already holding the stack, so a new run would queue behind it.
+    var hasBlocker: Bool { Blocker?.present ?? false }
+}
+
+/// spacectl prints `{}` when nothing blocks the stack; any non-empty object means a blocking run.
+struct BlockerInfo: Decodable, Hashable {
+    let present: Bool
+
+    private struct AnyKey: CodingKey {
+        var stringValue: String; var intValue: Int? { nil }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
+    init(from decoder: Decoder) throws {
+        if let c = try? decoder.container(keyedBy: AnyKey.self) { present = !c.allKeys.isEmpty } else { present = true }
+    }
 }
 
 struct ContextItem: Decodable, Hashable {
@@ -147,6 +167,24 @@ struct EnvRow: Identifiable, Hashable {
     let context: String
 }
 
+enum RunKind: String {
+    case tracked = "Tracked", proposed = "Proposed", drift = "Drift"
+}
+
+enum RunFilter: String, CaseIterable, Identifiable {
+    case all = "All", tracked = "Tracked", proposed = "Proposed", drift = "Drift"
+    var id: String { rawValue }
+
+    func includes(_ run: Run) -> Bool {
+        switch self {
+        case .all: return true
+        case .tracked: return run.kind == .tracked
+        case .proposed: return run.kind == .proposed
+        case .drift: return run.kind == .drift
+        }
+    }
+}
+
 struct Run: Decodable, Identifiable, Hashable {
     var id: String
     var state: String
@@ -155,7 +193,16 @@ struct Run: Decodable, Identifiable, Hashable {
     var createdAt: Double?
     var needsApproval: Bool?
     var isMostRecent: Bool?
+    var driftDetection: Bool?
     var commit: Commit?
+    /// Set by the client: spacectl only returns proposed (preview) runs from a separate call.
+    var isPreview = false
+
+    private enum CodingKeys: String, CodingKey {
+        case id, state, title, triggeredBy, createdAt, needsApproval, isMostRecent, driftDetection, commit
+    }
+
+    var kind: RunKind { driftDetection == true ? .drift : (isPreview ? .proposed : .tracked) }
 
     /// Still moving through the pipeline, so there is something to follow.
     var isInProgress: Bool {
