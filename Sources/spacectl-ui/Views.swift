@@ -418,6 +418,7 @@ struct RunInfoGrid: View {
     var body: some View {
         InfoGrid(rows: [
             ("Run", run.id),
+            ("Type", run.kind.rawValue),
             ("State", run.state + (run.isMostRecent == true ? " (most recent)" : "")),
             ("Triggered", "\(run.triggeredBy ?? "-") at \(formatTimestamp(run.createdAt))"),
             ("Title", run.title ?? "-"),
@@ -433,8 +434,8 @@ struct LatestRunSection: View {
 
     var body: some View {
         LoadView(state: model.runs) { runs in
-            if let r = runs.first {
-                GroupBox("Latest run") { RunInfoGrid(run: r) }
+            if let r = model.latestRun {
+                GroupBox(r.kind == .tracked ? "Latest tracked run" : "Latest run") { RunInfoGrid(run: r) }
             } else {
                 ContentUnavailableView("No runs", systemImage: "tray")
             }
@@ -499,50 +500,88 @@ struct RunHistoryView: View {
     }
 }
 
+struct RunKindPill: View {
+    let kind: RunKind
+
+    private var color: Color {
+        switch kind {
+        case .tracked: return Theme.teal
+        case .proposed: return .orange
+        case .drift: return .yellow
+        }
+    }
+
+    var body: some View {
+        Text(kind.rawValue)
+            .font(.caption.weight(.medium))
+            .padding(.horizontal, 8).padding(.vertical, 2)
+            .background(color.opacity(0.18), in: Capsule())
+            .foregroundStyle(color)
+    }
+}
+
 struct HistorySection: View {
     @Bindable var model: StacksViewModel
     let embedded: Bool
 
     var body: some View {
-        LoadView(state: model.runs) { runs in
-            if runs.isEmpty {
-                ContentUnavailableView("No runs", systemImage: "tray")
-            } else {
-                // Selecting a run chooses the run whose changes, Logs and Live logs are shown (default: latest).
-                Table(runs, selection: Binding(get: { model.effectiveRunID }, set: { model.logRunID = $0 })) {
-                                        TableColumn("") { run in
-                        Button { model.detailsRunID = model.detailsRunID == run.id ? nil : run.id } label: {
-                            Image(systemName: "info.circle").foregroundStyle(Theme.muted)
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Run details (⌘I)")
-                        .popover(isPresented: Binding(
-                            get: { model.detailsRunID == run.id },
-                            set: { if !$0 && model.detailsRunID == run.id { model.detailsRunID = nil } }
-                        ), arrowEdge: .trailing) {
-                            RunInfoGrid(run: run).padding(16).frame(width: 460)
-                        }
-                    }.width(28)
-                    TableColumn("Run") { Text($0.id).textSelection(.enabled) }.width(min: 200, ideal: 240)
-                    TableColumn("State") { StateBadge(state: $0.state) }.width(min: 90, ideal: 110)
-                    TableColumn("When") { Text(formatTimestamp($0.createdAt)) }.width(min: 150, ideal: 180)
-                    TableColumn("Trigger") { Text($0.triggeredBy ?? "-") }.width(min: 80, ideal: 100)
-                    TableColumn("Author") { Text($0.commit?.authorName ?? "-") }.width(min: 80, ideal: 120)
-                    TableColumn("Title") { Text($0.title ?? "-") }
-                }
-                .frame(height: tableHeight(runs.count, embedded: embedded))
-                .tableSurface(embedded: embedded)
-                .contextMenu(forSelectionType: String.self) { ids in
-                    if let id = ids.first {
-                        Button("Details") { model.showDetails(id) }
-                        Button("Open logs") { model.openLogs(id) }
-                        Button("Follow live") { model.openLogs(id, live: true) }
-                            .disabled(!(runs.first { $0.id == id }?.isInProgress ?? false))
+        LoadView(state: model.runs) { all in
+            let runs = all.filter { model.runFilter.includes($0) }
+            VStack(alignment: .leading, spacing: 8) {
+                // Only worth showing when the stack has proposed or drift runs next to the tracked ones.
+                if all.contains(where: { $0.kind != .tracked }) {
+                    Picker("Show", selection: $model.runFilter) {
+                        ForEach(RunFilter.allCases) { Text($0.rawValue).tag($0) }
                     }
-                } primaryAction: { ids in
-                    if let id = ids.first { model.openLogs(id) }
+                    .pickerStyle(.segmented).labelsHidden()
+                    .frame(maxWidth: 380)
+                    .padding(.horizontal, embedded ? 0 : 16).padding(.top, embedded ? 0 : 8)
+                }
+                if runs.isEmpty {
+                    ContentUnavailableView(all.isEmpty ? "No runs" : "No \(model.runFilter.rawValue.lowercased()) runs",
+                                           systemImage: "tray")
+                } else {
+                    table(runs)
                 }
             }
+        }
+    }
+
+    private func table(_ runs: [Run]) -> some View {
+        // Selecting a run chooses the run whose changes, Logs and Live logs are shown (default: latest tracked).
+        Table(runs, selection: Binding(get: { model.effectiveRunID }, set: { model.logRunID = $0 })) {
+            TableColumn("") { run in
+                Button { model.detailsRunID = model.detailsRunID == run.id ? nil : run.id } label: {
+                    Image(systemName: "info.circle").foregroundStyle(Theme.muted)
+                }
+                .buttonStyle(.borderless)
+                .help("Run details (⌘I)")
+                .popover(isPresented: Binding(
+                    get: { model.detailsRunID == run.id },
+                    set: { if !$0 && model.detailsRunID == run.id { model.detailsRunID = nil } }
+                ), arrowEdge: .trailing) {
+                    RunInfoGrid(run: run).padding(16).frame(width: 460)
+                }
+            }.width(28)
+            TableColumn("Run") { Text($0.id).textSelection(.enabled) }.width(min: 200, ideal: 240)
+            TableColumn("Type") { RunKindPill(kind: $0.kind) }.width(min: 80, ideal: 90)
+            TableColumn("State") { StateBadge(state: $0.state) }.width(min: 90, ideal: 110)
+            TableColumn("When") { Text(formatTimestamp($0.createdAt)) }.width(min: 150, ideal: 180)
+            TableColumn("Trigger") { Text($0.triggeredBy ?? "-") }.width(min: 80, ideal: 100)
+            TableColumn("Author") { Text($0.commit?.authorName ?? "-") }.width(min: 80, ideal: 120)
+            TableColumn("Title") { Text($0.title ?? "-") }
+        }
+        .frame(height: tableHeight(runs.count, embedded: embedded))
+        .tableSurface(embedded: embedded)
+        .contextMenu(forSelectionType: String.self) { ids in
+            if let id = ids.first {
+                Button("Details") { model.showDetails(id) }
+                Button("Open logs") { model.openLogs(id) }
+                Button("Follow live") { model.openLogs(id, live: true) }
+                    .disabled(!(runs.first { $0.id == id }?.isInProgress ?? false))
+            }
+        } primaryAction: { ids in
+            if let id = ids.first { model.openLogs(id) }
         }
     }
 }
@@ -641,7 +680,7 @@ struct LogsPane: View {
             HStack(spacing: 12) {
                 Picker("Run", selection: runBinding) {
                     ForEach(model.runs.value ?? []) { run in
-                        Text("\(run.id.prefix(8))…  \(run.state)  \(formatTimestamp(run.createdAt))").tag(Optional(run.id))
+                        Text("\(run.id.prefix(8))…  \(run.kind.rawValue)  \(run.state)  \(formatTimestamp(run.createdAt))").tag(Optional(run.id))
                     }
                 }
                 .frame(maxWidth: 420)

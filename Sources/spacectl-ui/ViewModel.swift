@@ -39,6 +39,7 @@ final class StacksViewModel {
     var logPhase = ""
     var logRunID: String?          // chosen in Run history or the logs header; defaults to the latest run
     var autoscroll = true
+    var runFilter: RunFilter = .all
     var detailsRunID: String?      // run whose details popover is open in Run history
 
     // Selection and per-stack data, each loaded on demand
@@ -68,7 +69,8 @@ final class StacksViewModel {
     private var tasks: [Task<Void, Never>] = []
 
     var spacectlMissing: Bool { Spacectl.locate() == nil }
-    var latestRun: Run? { runs.value?.first }
+    /// The newest tracked run (what was actually deployed); proposed and drift runs never take its place.
+    var latestRun: Run? { runs.value?.first { $0.kind == .tracked } ?? runs.value?.first }
     var effectiveRunID: String? { logRunID ?? latestRun?.id }
 
     // MARK: Search

@@ -147,6 +147,24 @@ struct EnvRow: Identifiable, Hashable {
     let context: String
 }
 
+enum RunKind: String {
+    case tracked = "Tracked", proposed = "Proposed", drift = "Drift"
+}
+
+enum RunFilter: String, CaseIterable, Identifiable {
+    case all = "All", tracked = "Tracked", proposed = "Proposed", drift = "Drift"
+    var id: String { rawValue }
+
+    func includes(_ run: Run) -> Bool {
+        switch self {
+        case .all: return true
+        case .tracked: return run.kind == .tracked
+        case .proposed: return run.kind == .proposed
+        case .drift: return run.kind == .drift
+        }
+    }
+}
+
 struct Run: Decodable, Identifiable, Hashable {
     var id: String
     var state: String
@@ -155,7 +173,16 @@ struct Run: Decodable, Identifiable, Hashable {
     var createdAt: Double?
     var needsApproval: Bool?
     var isMostRecent: Bool?
+    var driftDetection: Bool?
     var commit: Commit?
+    /// Set by the client: spacectl only returns proposed (preview) runs from a separate call.
+    var isPreview = false
+
+    private enum CodingKeys: String, CodingKey {
+        case id, state, title, triggeredBy, createdAt, needsApproval, isMostRecent, driftDetection, commit
+    }
+
+    var kind: RunKind { driftDetection == true ? .drift : (isPreview ? .proposed : .tracked) }
 
     /// Still moving through the pipeline, so there is something to follow.
     var isInProgress: Bool {

@@ -35,6 +35,7 @@ The app looks for `spacectl` in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local
 ## Usage notes
 
 - Search is server-side and needs 2+ characters, because listing every stack takes minutes.
+- Run history lists tracked, proposed and drift-detection runs (Type column, filter on top). Overview and the default run for Logs and changes use the latest tracked run.
 - Run history: select a row to see that run's changes below it and to choose the run Logs and Live logs show. Double-click jumps to its logs. Right-click offers Details, Open logs and Follow live (only for runs in progress); Cmd+I or the info button at the start of a row shows that run's details.
 - Logs show each phase (Queued, Preparing, Planning, Applying, Finished…) as a colored heading with extra spacing.
 - Live logs follows a run with `spacectl --tail`; there is no push API, so it is a stream, not polling.

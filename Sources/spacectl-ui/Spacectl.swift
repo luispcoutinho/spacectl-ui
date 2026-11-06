@@ -76,9 +76,24 @@ enum Spacectl {
         return try decode(Stack.self, from: data)
     }
 
+    /// Tracked runs plus proposed and drift-detection runs, newest first. Without `--preview-runs`
+    /// spacectl returns tracked runs only, and the preview list is a separate, non-overlapping set.
     static func runs(stackID: String, max: Int = 10) async throws -> [Run] {
-        let data = try await run(["stack", "run", "list", "--id", stackID, "--max-results", String(max), "-o", "json"])
-        return try decode([Run].self, from: data)
+        async let tracked = runList(stackID: stackID, max: max, preview: false)
+        async let preview = runList(stackID: stackID, max: max, preview: true)
+        let t = try await tracked
+        let p = (try? await preview) ?? []   // keep the tracked list usable if the preview call fails
+        var seen = Set<String>()
+        return (t + p).filter { seen.insert($0.id).inserted }
+            .sorted { ($0.createdAt ?? 0) > ($1.createdAt ?? 0) }
+    }
+
+    private static func runList(stackID: String, max: Int, preview: Bool) async throws -> [Run] {
+        var args = ["stack", "run", "list", "--id", stackID, "--max-results", String(max), "-o", "json"]
+        if preview { args.append("--preview-runs") }
+        var runs = try decode([Run].self, from: try await run(args))
+        for i in runs.indices { runs[i].isPreview = preview }
+        return runs
     }
 
     static func changes(stackID: String, runID: String) async throws -> [ChangeRow] {
