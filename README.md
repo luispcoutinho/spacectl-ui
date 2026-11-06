@@ -6,6 +6,8 @@ your existing `spacectl` login and shows only what your account can see.
 Tabs: Overview (includes the latest run), Run history (runs on top, the selected run's changes below), Logs, Live logs, Outputs, Environment, Everything.
 Secret values are never shown (Spacelift masks them).
 
+The full [user manual](MANUAL.md) describes every feature and when it is available.
+
 ## Requirements
 
 - macOS 14 (Sonoma) or newer, Apple Silicon or Intel
