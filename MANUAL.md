@@ -64,7 +64,7 @@ A stack with the state **None** has never run a tracked run. States are shown ti
 
 **Settled.** The app's word for a run that needs nothing more from the machine: Finished, Failed, Discarded, Canceled, Stopped, Skipped, or waiting for a person (Unconfirmed, Pending review). Used by the batch throttle.
 
-**Never-run stack.** A stack with no tracked run. In the Trigger tab it is hidden, and its first run is started from its own page.
+**Never-run stack.** A stack with no tracked run. In the Trigger tab it is hidden when the action is Deploy (its first deployment is started from its own page), but listed when the action is Preview.
 
 ## The window
 
@@ -250,12 +250,12 @@ The app is read-only until you turn actions on: **Settings (⌘,) > Enable actio
 | I want to... | In the app |
 |---|---|
 | Start the first run of a stack that never ran | **Trigger** button (header or empty state) |
-| Start a new run for a stack that has run before | **Trigger tab** (select just that stack) |
-| Start new runs for many stacks | **Trigger tab** |
+| Start a new tracked run for a stack that has run before | **Trigger tab**, action **Deploy** (select just that stack) |
+| Start new tracked runs for many stacks | **Trigger tab**, action **Deploy** |
+| Start a preview (proposed run, plan only) on one or many stacks | **Trigger tab**, action **Preview** |
 | Repeat a failed run | Right-click the run > **Retry failed run** |
 | Replan, confirm or discard a run waiting for approval | Not supported: use the Spacelift UI or `spacectl stack replan`, `confirm`, `discard` |
 | Cancel or stop a run | Not supported: use the Spacelift UI or `spacectl stack cancel` / `stop` |
-| Start a preview (proposed run) | Not supported |
 
 ### Trigger button (first run)
 
@@ -283,35 +283,41 @@ Repeats a failed run (`spacectl stack retry`) at its original commit.
 
 ### Trigger tab (many stacks)
 
-Starts a new tracked run on each selected stack. It is a segment in the sidebar's switch, visible only with actions enabled.
+Starts a run on each selected stack. It is a segment in the sidebar's switch, visible only with actions enabled. A switch at the top picks the action for the whole batch:
 
-**What it lists.** The same search as the Search tab (2+ characters, up to 200 results), but only stacks that **have run before**. Never-run stacks are hidden, with a note saying how many; start their first run from the Trigger button on their own page. The search field is shared, so typing in one tab changes the other's results.
+| Action | What it starts | Command | Applies changes? |
+|---|---|---|---|
+| **Preview** (the default) | A **proposed run** at the branch head: a plan only | `spacectl stack preview` | Never |
+| **Deploy** | A **tracked run** at the branch head | `spacectl stack deploy` | Yes, immediately on stacks with autodeploy; otherwise after a person confirms |
+
+Preview is the default because it cannot change infrastructure. The line under the switch repeats what the chosen action does.
+
+**What it lists.** The same search as the Search tab (2+ characters, up to 200 results). The search field is shared, so typing in one tab changes the other's results.
+
+- **Preview** lists **every match**, including stacks that have never run (a preview works on any stack).
+- **Deploy** lists only stacks that **have run before**. Never-run stacks are hidden, with a note saying how many; start their first run from the Trigger button on their own page.
 
 **Selecting.**
 
-- Each row has a checkbox. **Nothing is selected until you select it.** Use **Select all** or **None**; the header shows "N of M selected".
-- Only stacks currently in the results count. If you change the search, ticks on stacks that disappeared are ignored.
-- Row icons: **⚡** autodeploy is on (a new run applies immediately); **⌛** another run is blocking the stack (a new run queues behind it); **🔒** you lack permission (the row is disabled and cannot be selected).
+- Each row has a checkbox. **Nothing is selected until you select it.** **Select all N** ticks every match in the list; **None** clears it. The header shows "N of M selected". "Every match" means every stack currently listed.
+- Only stacks currently in the list count. If you change the search or switch the action, ticks on stacks that disappeared from the list are ignored.
+- Row icons: **⚡** autodeploy is on (a Deploy applies immediately); **⌛** another run is blocking the stack (a new run queues behind it); **🔒** you lack permission (the row is disabled and cannot be selected).
 - With 200 results, a warning asks you to narrow the search before using Select all.
 
-**Confirming.** **Trigger N stacks…** opens a sheet that shows:
+**Confirming.** The **Preview N stacks…** or **Deploy N stacks…** button opens a sheet that shows the action, the stack count and a scrollable list of every stack ID.
 
-- the stack count, and a scrollable list of every stack ID;
-- a warning listing the stacks with autodeploy ("will apply immediately");
-- a warning listing stacks already blocked by another run;
-- a text box where you type one of two phrases: `deploy <count>` (the number of selected stacks) or `deploy <search>` (your current search text). Case and extra spaces are ignored. The **Trigger** button stays disabled until the text matches.
+- **Preview:** nothing else is needed. Press **Preview** to start. The sheet says that nothing is applied.
+- **Deploy:** the sheet also warns about stacks with autodeploy ("will apply immediately") and stacks already blocked by another run, and asks you to type one of two phrases: `deploy <count>` (the number of selected stacks) or `deploy <search>` (your current search text). Case and extra spaces are ignored. The **Deploy** button stays disabled until the text matches. Typing the search text does not check how many stacks you ticked, so always read the count at the top of the sheet. If the search text is empty, only the count phrase is offered.
 
-Typing the search text does not check how many stacks you ticked, so always read the count at the top of the sheet. If the search text is empty, only the count phrase is offered.
-
-**Running.** After you confirm, the sidebar shows a progress list. At most **3 runs are in progress at once**: the next stack starts only when one of the three settles. This protects the runners from a flood of simultaneous runs. A run that is waiting for a person (Unconfirmed, Pending review) counts as settled, so the batch does not stall on it. Each row shows one of:
+**Running.** After you confirm, the sidebar shows a progress list headed "Previewing" or "Deploying". At most **3 runs are in progress at once**: the next stack starts only when one of the three settles. This protects the runners from a flood of simultaneous runs, which matters most for a preview over many matches. A run that is waiting for a person (Unconfirmed, Pending review) counts as settled, so the batch does not stall on it. Each row shows one of:
 
 | Status | Meaning |
 |---|---|
 | Queued | Not started yet |
-| Starting… | The trigger command is running |
+| Starting… | The command is running |
 | A state pill with a spinner | The run was created and is in progress (checked every 10 seconds) |
 | A final state pill | The run settled |
-| A red message | The trigger failed, with the error from `spacectl` |
+| A red message | The command failed, with the error from `spacectl` |
 | "Stopped waiting; the run continues in Spacelift" | You pressed Stop while it was running |
 | Not started | The batch was stopped before this stack |
 
@@ -320,7 +326,7 @@ Typing the search text does not check how many stacks you ticked, so always read
 - When the batch ends, **Done** returns to the list, clears the selection and refreshes the stack states.
 - You can switch to Search or Recent meanwhile; the batch keeps running while the app is open.
 
-**Limits.** The batch lives in the app. Quitting it stops the waiting (runs already created continue in Spacelift, and nothing else is started). A run held up behind a blocking run keeps its slot until it settles.
+**Limits.** The batch lives in the app. Quitting it stops the waiting (runs already created continue in Spacelift, and nothing else is started). A run held up behind a blocking run keeps its slot until it settles. A preview is still a real run: it uses runner time and may trigger notifications or policies, so keep the search narrow.
 
 ## How do I... (recipes)
 
@@ -340,9 +346,11 @@ Typing the search text does not check how many stacks you ticked, so always read
 
 **Re-run a failed deployment.** Enable actions. Run history > right-click the failed run > **Retry failed run** > confirm.
 
-**Redeploy a stack that has run before.** Enable actions. Sidebar > **Trigger** tab > search the stack name > tick only that stack > **Trigger 1 stack…** > type `deploy 1` > Trigger.
+**Redeploy a stack that has run before.** Enable actions. Sidebar > **Trigger** tab > switch to **Deploy** > search the stack name > tick only that stack > **Deploy 1 stack…** > type `deploy 1` > Deploy.
 
-**Trigger a group of stacks.** Sidebar > **Trigger** tab > search a common word > review the list > tick the ones you want (or **Select all**) > **Trigger N stacks…** > read the autodeploy and blocker warnings > type `deploy <N>` > Trigger. Watch the progress list; press **Stop** to end it early.
+**Preview every match of a search.** Enable actions. Sidebar > **Trigger** tab > keep **Preview** selected > search a common word > **Select all N** > **Preview N stacks…** > Preview. The progress list shows each plan as it settles. Nothing is applied.
+
+**Deploy a group of stacks.** Sidebar > **Trigger** tab > switch to **Deploy** > search a common word > review the list > tick the ones you want (or **Select all N**) > **Deploy N stacks…** > read the autodeploy and blocker warnings > type `deploy <N>` > Deploy. Watch the progress list; press **Stop** to end it early.
 
 ## How the app gets its data
 
@@ -358,7 +366,8 @@ Every read is a `spacectl` command. The app never contacts Spacelift directly.
 | Live logs | `stack logs --run <id> --tail` | When you open Live logs |
 | Outputs | `stack outputs` | Outputs and Everything |
 | Environment | `stack environment list` | Environment and Everything |
-| Trigger | `stack deploy` | After you confirm |
+| Trigger and Deploy | `stack deploy` | After you confirm |
+| Preview | `stack preview` | After you confirm |
 | Retry failed run | `stack retry --run <id>` | After you confirm |
 
 Notes:
@@ -415,7 +424,7 @@ defaults delete io.github.luispcoutinho.spacectl-ui
 | macOS refuses to open the app | Clear the quarantine flag once (see the README). |
 | No Trigger tab, header button or Retry item | Actions are off. Enable them in Settings (⌘,). |
 | Header Trigger button greyed out | The stack already has a tracked run, you lack permission, or runs are still loading. Hover over it for the reason. |
-| A stack is missing from the Trigger tab | It has never run (use its own Trigger button), or it is outside the first 200 results. |
+| A stack is missing from the Trigger tab | With **Deploy**, a stack that has never run is hidden (use its own Trigger button, or switch to Preview). Otherwise it is outside the first 200 results. |
 | A row in the Trigger tab is disabled | You lack write permission on that stack. |
 | Proposed or drift runs are missing | Only the latest 10 of each kind are fetched. Use the filter, or look in Spacelift for older ones. |
 | The "Latest tracked run" is older than the newest run | Correct: newer runs are proposed or drift runs, not deployments. Filter Run history to see them. |
@@ -424,10 +433,10 @@ defaults delete io.github.luispcoutinho.spacectl-ui
 | A batch row says "A run was started but its ID could not be read" | The command succeeded but its output did not contain a run ID. Open the stack and check its runs before triggering again. |
 | Logs are empty | The run may not have produced output yet (queued), or the chosen phase has none. Pick **All phases**. |
 
-**Is anything I do here dangerous?** Reading is not. Actions can start runs that apply infrastructure changes when autodeploy is on, so they are off by default and ask for confirmation. The batch confirmation lists every autodeploy stack by name.
+**Is anything I do here dangerous?** Reading is not, and a Preview only plans. A Deploy can apply infrastructure changes when autodeploy is on, so actions are off by default, every action asks for confirmation, and a batch Deploy lists every autodeploy stack by name and needs a typed phrase.
 
 **Does the app change anything when it is closed?** No. Runs already started continue in Spacelift, and nothing new is started.
 
-**Why can't I trigger a stack that has runs from its own page?** By design, the header Trigger button is only for first runs. Use the Trigger tab to start another run on a stack that has run before.
+**Why can't I trigger a stack that has runs from its own page?** By design, the header Trigger button is only for first runs. Use the Trigger tab (Deploy) to start another tracked run on a stack that has run before, or Preview for a plan only.
 
 **Is this an official Spacelift app?** No. It is unofficial and not affiliated with Spacelift.

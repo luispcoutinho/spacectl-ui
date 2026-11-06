@@ -19,11 +19,23 @@ struct TriggerListView: View {
         let candidates = model.triggerCandidates
         let hidden = model.stacks.count - candidates.count
         return VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                Picker("Action", selection: $model.triggerAction) {
+                    ForEach(TriggerAction.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                Text(model.triggerAction == .preview
+                     ? "Starts a proposed run (plan only) on each selected stack. Nothing is applied."
+                     : "Starts a tracked run on each selected stack. Stacks with autodeploy apply immediately.")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            }
+            .padding(.horizontal, 12).padding(.bottom, 8)
+
             HStack(spacing: 10) {
                 Text("\(model.triggerSelected.count) of \(candidates.count) selected")
                     .font(.caption).foregroundStyle(Theme.muted)
                 Spacer()
-                Button("Select all") { model.setTriggerSelection(all: true) }.disabled(candidates.isEmpty)
+                Button("Select all \(candidates.count)") { model.setTriggerSelection(all: true) }.disabled(candidates.isEmpty)
                 Button("None") { model.setTriggerSelection(all: false) }.disabled(model.triggerSelection.isEmpty)
             }
             .buttonStyle(.plain).font(.caption).foregroundStyle(Theme.accent)
@@ -36,7 +48,7 @@ struct TriggerListView: View {
                 .overlay { overlayContent(candidates: candidates) }
 
             VStack(alignment: .leading, spacing: 6) {
-                if hidden > 0 {
+                if hidden > 0 && model.triggerAction == .deploy {
                     Text("\(hidden) never-run \(hidden == 1 ? "stack" : "stacks") hidden. Start a first run from the stack's own page.")
                         .font(.caption).foregroundStyle(Theme.muted)
                 }
@@ -48,7 +60,7 @@ struct TriggerListView: View {
                     model.triggerPhrase = ""
                     model.triggerSheet = true
                 } label: {
-                    Text("Trigger \(model.triggerSelected.count) \(model.triggerSelected.count == 1 ? "stack" : "stacks")…")
+                    Text("\(model.triggerAction.rawValue) \(model.triggerSelected.count) \(model.triggerSelected.count == 1 ? "stack" : "stacks")…")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -97,10 +109,10 @@ struct TriggerListView: View {
         } else if candidates.isEmpty && !model.isSearching {
             if model.query.trimmingCharacters(in: .whitespaces).count < 2 {
                 ContentUnavailableView("Search for stacks", systemImage: "magnifyingglass",
-                                       description: Text("Type at least 2 characters. Only stacks that have run before are listed."))
+                                       description: Text("Type at least 2 characters. Deploy lists only stacks that have run before."))
             } else {
-                ContentUnavailableView("No stacks to trigger", systemImage: "tray",
-                                       description: Text("None of the matches has run before."))
+                ContentUnavailableView("No stacks to deploy", systemImage: "tray",
+                                       description: Text("None of the matches has run before. Preview works on any stack."))
             }
         }
     }
@@ -120,7 +132,7 @@ struct TriggerProgressView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("\(settled) of \(model.triggerBatch.count) settled").font(.caption).foregroundStyle(Theme.muted)
+                Text("\(model.triggerBatchAction == .preview ? "Previewing" : "Deploying"): \(settled) of \(model.triggerBatch.count) settled").font(.caption).foregroundStyle(Theme.muted)
                 Spacer()
                 if model.triggerRunning { ProgressView().controlSize(.small) }
             }
@@ -183,19 +195,23 @@ struct TriggerConfirmSheet: View {
 
     var body: some View {
         let selected = model.triggerSelected
+        let preview = model.triggerAction == .preview
         let auto = selected.filter { $0.autodeploy == true }
         let blocked = selected.filter(\.hasBlocker)
         VStack(alignment: .leading, spacing: 14) {
-            Text("Trigger \(selected.count) \(selected.count == 1 ? "stack" : "stacks")").font(.title3.weight(.semibold))
-            Text("Starts a new tracked run at the branch head of each stack (spacectl stack deploy). Runs are not confirmed from here, and at most \(StacksViewModel.maxInFlight) are in progress at once.")
+            Text("\(model.triggerAction.rawValue) \(selected.count) \(selected.count == 1 ? "stack" : "stacks")")
+                .font(.title3.weight(.semibold))
+            Text(preview
+                 ? "Starts a proposed run (plan only, spacectl stack preview) at the branch head of each stack. Nothing is applied. At most \(StacksViewModel.maxInFlight) are in progress at once."
+                 : "Starts a new tracked run at the branch head of each stack (spacectl stack deploy). Runs are not confirmed from here, and at most \(StacksViewModel.maxInFlight) are in progress at once.")
                 .font(.callout).foregroundStyle(Theme.muted)
 
-            if !auto.isEmpty {
+            if !preview && !auto.isEmpty {
                 warning("bolt.fill", .yellow,
                         "\(auto.count) of \(selected.count) have autodeploy on and will apply immediately:",
                         names: auto.map(\.id))
             }
-            if !blocked.isEmpty {
+            if !preview && !blocked.isEmpty {
                 warning("hourglass", .orange,
                         "\(blocked.count) already have a blocking run; theirs will queue behind it:",
                         names: blocked.map(\.id))
@@ -211,18 +227,20 @@ struct TriggerConfirmSheet: View {
                 .frame(height: 120)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("To confirm, type one of:").font(.callout)
-                ForEach(model.triggerPhrases, id: \.self) { Text($0).font(.callout.monospaced()).foregroundStyle(Theme.accent) }
-                TextField("", text: $model.triggerPhrase)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { model.startBatch() }
+            if !preview {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("To confirm, type one of:").font(.callout)
+                    ForEach(model.triggerPhrases, id: \.self) { Text($0).font(.callout.monospaced()).foregroundStyle(Theme.accent) }
+                    TextField("", text: $model.triggerPhrase)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { model.startBatch() }
+                }
             }
 
             HStack {
                 Spacer()
                 Button("Cancel") { model.triggerSheet = false }.keyboardShortcut(.cancelAction)
-                Button("Trigger") { model.startBatch() }
+                Button(model.triggerAction.rawValue) { model.startBatch() }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .disabled(!model.triggerPhraseMatches)

@@ -52,7 +52,7 @@ Turn on **Settings (Cmd+,) > Enable actions** to get these. They run `spacectl` 
 
 - **Trigger** (stack header): starts the first run of a stack that has never had a tracked run (`spacectl stack deploy`, a tracked run at the branch head). It is greyed out once the stack has run before.
 - **Retry failed run**: right-click a failed run in Run history (`spacectl stack retry`).
-- **Trigger tab** (sidebar): search, tick stacks that have run before, and trigger them all. To confirm you type `deploy <count>` or `deploy <search>`. The sheet warns about stacks with **autodeploy** (a new run applies immediately) and stacks already blocked by another run. At most 3 runs are in progress at once: the next stack starts when one settles (finished, failed, discarded, or waiting for a person to confirm). Stop ends the waiting; runs already created keep going in Spacelift.
+- **Trigger tab** (sidebar): search, tick stacks, pick **Preview** (a proposed run: plan only, the default) or **Deploy** (a tracked run), and start it on all of them. Preview lists every match; Deploy lists only stacks that have run before, warns about **autodeploy** (a new run applies immediately) and stacks already blocked by another run, and needs you to type `deploy <count>` or `deploy <search>`. At most 3 runs are in progress at once: the next stack starts when one settles. Stop ends the waiting; runs already created keep going in Spacelift.
 
 Runs are never confirmed or force-applied from the app.
 
