@@ -38,6 +38,26 @@ struct Stack: Decodable, Identifiable, Hashable {
     var AttachedContexts: [ContextRef]?
     var AttachedPolicies: [PolicyRef]?
     var VendorConfig: VendorConfig?
+    var canWrite: Bool?
+    var Blocker: BlockerInfo?
+
+    /// A run is already holding the stack, so a new run would queue behind it.
+    var hasBlocker: Bool { Blocker?.present ?? false }
+}
+
+/// spacectl prints `{}` when nothing blocks the stack; any non-empty object means a blocking run.
+struct BlockerInfo: Decodable, Hashable {
+    let present: Bool
+
+    private struct AnyKey: CodingKey {
+        var stringValue: String; var intValue: Int? { nil }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
+    init(from decoder: Decoder) throws {
+        if let c = try? decoder.container(keyedBy: AnyKey.self) { present = !c.allKeys.isEmpty } else { present = true }
+    }
 }
 
 struct ContextItem: Decodable, Hashable {

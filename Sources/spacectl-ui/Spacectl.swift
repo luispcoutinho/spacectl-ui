@@ -30,7 +30,10 @@ enum Spacectl {
         candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    static func run(_ arguments: [String]) async throws -> Data {
+    static func run(_ arguments: [String]) async throws -> Data { try await execute(arguments).out }
+
+    /// Runs spacectl and returns both streams; some commands print the new run's ID on stderr.
+    static func execute(_ arguments: [String]) async throws -> (out: Data, err: Data) {
         guard let path = locate() else { throw SpacectlError.notFound }
         return try await Task.detached(priority: .userInitiated) {
             let process = Process()
@@ -55,7 +58,7 @@ enum Spacectl {
                 throw SpacectlError.failed(status: process.terminationStatus,
                                            stderr: String(decoding: errData, as: UTF8.self))
             }
-            return outData
+            return (outData, errData)
         }.value
     }
 
@@ -63,12 +66,17 @@ enum Spacectl {
         try JSONDecoder().decode(type, from: data)
     }
 
+    /// spacectl prints JSON `null`, not `[]`, when a list is empty (for example a stack that never ran).
+    private static func decodeList<T: Decodable>(_ type: T.Type, from data: Data) throws -> [T] {
+        try JSONDecoder().decode([T]?.self, from: data) ?? []
+    }
+
     // MARK: Queries
 
     /// Server-side search: listing every stack without a filter is far too slow for an interactive UI.
     static func searchStacks(_ query: String, limit: Int = 200) async throws -> [Stack] {
         let data = try await run(["stack", "list", "-o", "json", "--search", query, "--limit", String(limit)])
-        return try decode([Stack].self, from: data).sorted { $0.id < $1.id }
+        return try decodeList(Stack.self, from: data).sorted { $0.id < $1.id }
     }
 
     static func stackDetail(id: String) async throws -> Stack {
@@ -88,24 +96,24 @@ enum Spacectl {
             .sorted { ($0.createdAt ?? 0) > ($1.createdAt ?? 0) }
     }
 
-    private static func runList(stackID: String, max: Int, preview: Bool) async throws -> [Run] {
+    static func runList(stackID: String, max: Int, preview: Bool) async throws -> [Run] {
         var args = ["stack", "run", "list", "--id", stackID, "--max-results", String(max), "-o", "json"]
         if preview { args.append("--preview-runs") }
-        var runs = try decode([Run].self, from: try await run(args))
+        var runs = try decodeList(Run.self, from: try await run(args))
         for i in runs.indices { runs[i].isPreview = preview }
         return runs
     }
 
     static func changes(stackID: String, runID: String) async throws -> [ChangeRow] {
         let data = try await run(["stack", "changes", "--id", stackID, "--run", runID])
-        return try decode([ChangeSet].self, from: data)
+        return try decodeList(ChangeSet.self, from: data)
             .flatMap { $0.Resources ?? [] }
             .map { ChangeRow(type: $0.Metadata?.type ?? "-", address: $0.Address, previous: $0.PreviousAddress ?? "") }
     }
 
     static func environment(stackID: String) async throws -> [EnvRow] {
         let data = try await run(["stack", "environment", "list", "--id", stackID, "-o", "json"])
-        return try decode([EnvVar].self, from: data).map { v in
+        return try decodeList(EnvVar.self, from: data).map { v in
             // Spacelift never returns write-only values; show the same placeholders the CLI table does.
             let shown: String
             if v.writeOnly == true { shown = "*****" }
@@ -118,6 +126,39 @@ enum Spacectl {
 
     static func outputs(stackID: String) async throws -> [StackOutput] {
         let data = try await run(["stack", "outputs", "--id", stackID, "-o", "json"])
-        return try decode([StackOutput].self, from: data)
+        return try decodeList(StackOutput.self, from: data)
+    }
+
+    // MARK: Actions (change Spacelift state; only reachable when the user enabled actions)
+
+    /// States after which a run needs nothing more from the machine, including those waiting for a human.
+    static let settledStates: Set<String> = ["FINISHED", "FAILED", "DISCARDED", "CANCELED", "STOPPED", "SKIPPED",
+                                             "UNCONFIRMED", "PENDING_REVIEW"]
+
+    /// Starts a tracked run at the branch head, like the web UI's Trigger. It is never confirmed or force-applied
+    /// from here: a stack with autodeploy applies on its own, any other waits for a person to confirm.
+    @discardableResult
+    static func deploy(stackID: String) async throws -> String? {
+        let before = try? await runList(stackID: stackID, max: 1, preview: false).first?.id
+        let (out, err) = try await execute(["stack", "deploy", "--id", stackID])
+        if let id = runID(in: String(decoding: out, as: UTF8.self) + "\n" + String(decoding: err, as: UTF8.self)) { return id }
+        // The output carried no ID: fall back to the newest tracked run, if it appeared just now.
+        let after = try? await runList(stackID: stackID, max: 1, preview: false).first?.id
+        return after != before ? after : nil
+    }
+
+    static func retry(stackID: String, runID: String) async throws {
+        _ = try await execute(["stack", "retry", "--id", stackID, "--run", runID])
+    }
+
+    static func runState(stackID: String, runID: String) async throws -> String? {
+        try await runList(stackID: stackID, max: 10, preview: false).first { $0.id == runID }?.state
+    }
+
+    /// Run IDs are 26-character ULIDs; stack slugs are lowercase, so they cannot match.
+    private static func runID(in text: String) -> String? {
+        let regex = try! NSRegularExpression(pattern: "\\b[0-9A-HJKMNP-TV-Z]{26}\\b")
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.firstMatch(in: text, range: range).flatMap { Range($0.range, in: text).map { String(text[$0]) } }
     }
 }

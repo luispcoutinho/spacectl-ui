@@ -54,6 +54,23 @@ final class StacksViewModel {
     var sidebarMode: SidebarMode = .search
     var recents: [RecentStack] = RecentStack.load()
 
+    // Actions that change Spacelift state (behaviour lives in Trigger.swift). Off until the user opts in.
+    var actionsEnabled = UserDefaults.standard.bool(forKey: "actionsEnabled") {
+        didSet {
+            UserDefaults.standard.set(actionsEnabled, forKey: "actionsEnabled")
+            if !actionsEnabled { stopBatch(); if sidebarMode == .trigger { sidebarMode = .search } }
+        }
+    }
+    var pendingAction: PendingAction?
+    var actionBusy = false
+    var actionError: String?
+    var triggerSelection = Set<String>()
+    var triggerBatch: [TriggerItem] = []
+    var triggerRunning = false
+    var triggerSheet = false
+    var triggerPhrase = ""
+    @ObservationIgnored var triggerTask: Task<Void, Never>?
+
     // ⌘K command palette (behaviour lives in CommandPalette.swift)
     var paletteOpen = false
     var paletteQuery = ""
@@ -126,6 +143,7 @@ final class StacksViewModel {
         guard let id = selectedID else { return }
         // Every tab's header shows the live state, which also covers stacks opened from Recent.
         load(\.stack, id) { try await Spacectl.stackDetail(id: id) }
+        if actionsEnabled { loadRuns(id) }   // the header's Trigger button needs to know whether the stack ever ran
         switch tab {
         case .overview, .history, .logs, .live:
                            loadRuns(id)

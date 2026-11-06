@@ -89,6 +89,47 @@ struct ContentView: View {
             }
         }
         .animation(.easeOut(duration: 0.12), value: model.paletteOpen)
+        .sheet(isPresented: Binding(get: { model.triggerSheet }, set: { model.triggerSheet = $0 })) {
+            TriggerConfirmSheet(model: model)
+        }
+        .alert(pendingTitle, isPresented: Binding(get: { model.pendingAction != nil },
+                                                  set: { if !$0 { model.pendingAction = nil } })) {
+            Button("Cancel", role: .cancel) {}
+            Button(pendingButton) { model.confirmPending() }
+        } message: {
+            Text(pendingMessage)
+        }
+        .alert("Action failed", isPresented: Binding(get: { model.actionError != nil },
+                                                    set: { if !$0 { model.actionError = nil } })) {
+            Button("OK") {}
+        } message: {
+            Text(model.actionError ?? "")
+        }
+    }
+
+    private var pendingTitle: String {
+        switch model.pendingAction {
+        case .trigger: return "Trigger this stack?"
+        case .retry: return "Retry this failed run?"
+        case nil: return ""
+        }
+    }
+
+    private var pendingButton: String {
+        if case .retry = model.pendingAction { return "Retry" }
+        return "Trigger"
+    }
+
+    private var pendingMessage: String {
+        switch model.pendingAction {
+        case .trigger(let id, let autodeploy):
+            return "\(id)\n\nStarts its first run (spacectl stack deploy) at the branch head."
+                + (autodeploy ? "\n\nAutodeploy is on, so the run will apply immediately." : "\nThe run waits for a person to confirm it.")
+        case .retry(let id, let runID):
+            return "\(id)\n\nRetries run \(runID) (spacectl stack retry)."
+        case nil:
+            return ""
+        }
     }
 }
 
@@ -101,16 +142,17 @@ struct StackListView: View {
         VStack(spacing: 0) {
             VStack(spacing: 10) {
                 Picker("", selection: $model.sidebarMode) {
-                    ForEach(SidebarMode.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(SidebarMode.allCases.filter { $0 != .trigger || model.actionsEnabled }) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented).labelsHidden()
-                if model.sidebarMode == .search { searchField }
+                if model.sidebarMode != .recent && model.triggerBatch.isEmpty { searchField }
             }
             .padding(12)
 
             switch model.sidebarMode {
             case .search: searchList
             case .recent: recentList
+            case .trigger: TriggerListView(model: model)
             }
 
             footer
@@ -162,7 +204,7 @@ struct StackListView: View {
 
     private var footer: some View {
         HStack {
-            if model.sidebarMode == .search {
+            if model.sidebarMode != .recent {
                 if model.isSearching { ProgressView().controlSize(.small) }
                 Text(model.stacks.isEmpty ? "" : "\(model.stacks.count) stacks")
                     .font(.caption).foregroundStyle(Theme.muted)
@@ -257,6 +299,12 @@ struct StackDetailView: View {
             Button { model.closeStack() } label: { Image(systemName: "xmark") }
                 .buttonStyle(.bordered)
                 .help("Close stack (Esc)")
+            if model.actionsEnabled {
+                Button { model.requestTrigger() } label: { Label("Trigger", systemImage: "play.fill") }
+                    .buttonStyle(.bordered)
+                    .disabled(!model.canTriggerFirstRun)
+                    .help(model.triggerButtonHelp)
+            }
             Button { model.refresh() } label: { Label("Refresh", systemImage: "arrow.clockwise") }
                 .keyboardShortcut("r", modifiers: .command)
                 .buttonStyle(.bordered)
@@ -437,7 +485,7 @@ struct LatestRunSection: View {
             if let r = model.latestRun {
                 GroupBox(r.kind == .tracked ? "Latest tracked run" : "Latest run") { RunInfoGrid(run: r) }
             } else {
-                ContentUnavailableView("No runs", systemImage: "tray")
+                NoRunsView(model: model)
             }
         }
     }
@@ -537,9 +585,10 @@ struct HistorySection: View {
                     .frame(maxWidth: 380)
                     .padding(.horizontal, embedded ? 0 : 16).padding(.top, embedded ? 0 : 8)
                 }
-                if runs.isEmpty {
-                    ContentUnavailableView(all.isEmpty ? "No runs" : "No \(model.runFilter.rawValue.lowercased()) runs",
-                                           systemImage: "tray")
+                if all.isEmpty {
+                    NoRunsView(model: model)
+                } else if runs.isEmpty {
+                    ContentUnavailableView("No \(model.runFilter.rawValue.lowercased()) runs", systemImage: "tray")
                 } else {
                     table(runs)
                 }
@@ -579,6 +628,10 @@ struct HistorySection: View {
                 Button("Open logs") { model.openLogs(id) }
                 Button("Follow live") { model.openLogs(id, live: true) }
                     .disabled(!(runs.first { $0.id == id }?.isInProgress ?? false))
+                if model.actionsEnabled, let run = runs.first(where: { $0.id == id }), run.state == "FAILED" {
+                    Divider()
+                    Button("Retry failed run") { model.requestRetry(run) }
+                }
             }
         } primaryAction: { ids in
             if let id = ids.first { model.openLogs(id) }

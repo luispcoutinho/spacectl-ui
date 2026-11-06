@@ -14,5 +14,7 @@ struct SpacectlUIApp: App {
                     .keyboardShortcut("k", modifiers: .command)
             }
         }
+
+        Settings { SettingsView(model: model) }
     }
 }
