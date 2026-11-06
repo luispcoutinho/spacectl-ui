@@ -139,11 +139,21 @@ enum Spacectl {
     /// from here: a stack with autodeploy applies on its own, any other waits for a person to confirm.
     @discardableResult
     static func deploy(stackID: String) async throws -> String? {
-        let before = try? await runList(stackID: stackID, max: 1, preview: false).first?.id
-        let (out, err) = try await execute(["stack", "deploy", "--id", stackID])
+        try await startRun(stackID: stackID, preview: false)
+    }
+
+    /// Starts a proposed run (a preview) at the branch head: it plans and never applies.
+    @discardableResult
+    static func preview(stackID: String) async throws -> String? {
+        try await startRun(stackID: stackID, preview: true)
+    }
+
+    private static func startRun(stackID: String, preview: Bool) async throws -> String? {
+        let before = try? await runList(stackID: stackID, max: 1, preview: preview).first?.id
+        let (out, err) = try await execute(["stack", preview ? "preview" : "deploy", "--id", stackID])
         if let id = runID(in: String(decoding: out, as: UTF8.self) + "\n" + String(decoding: err, as: UTF8.self)) { return id }
-        // The output carried no ID: fall back to the newest tracked run, if it appeared just now.
-        let after = try? await runList(stackID: stackID, max: 1, preview: false).first?.id
+        // The output carried no ID: fall back to the newest run of that kind, if it appeared just now.
+        let after = try? await runList(stackID: stackID, max: 1, preview: preview).first?.id
         return after != before ? after : nil
     }
 
@@ -151,8 +161,8 @@ enum Spacectl {
         _ = try await execute(["stack", "retry", "--id", stackID, "--run", runID])
     }
 
-    static func runState(stackID: String, runID: String) async throws -> String? {
-        try await runList(stackID: stackID, max: 10, preview: false).first { $0.id == runID }?.state
+    static func runState(stackID: String, runID: String, preview: Bool = false) async throws -> String? {
+        try await runList(stackID: stackID, max: 10, preview: preview).first { $0.id == runID }?.state
     }
 
     /// Run IDs are 26-character ULIDs; stack slugs are lowercase, so they cannot match.

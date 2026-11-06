@@ -6,6 +6,13 @@ enum PendingAction: Equatable {
     case retry(stackID: String, runID: String)
 }
 
+/// What the Trigger tab starts on every selected stack.
+enum TriggerAction: String, CaseIterable, Identifiable {
+    case preview = "Preview"   // a proposed run: plans, never applies
+    case deploy = "Deploy"     // a tracked run: applies at once on stacks with autodeploy
+    var id: String { rawValue }
+}
+
 /// One stack in a Trigger batch.
 struct TriggerItem: Identifiable {
     enum Status: Equatable {
@@ -76,8 +83,11 @@ extension StacksViewModel {
 
     // MARK: Trigger tab (many stacks, from the current search)
 
-    /// Only stacks that have run before: a never-run stack has the state NONE, and its first run is started from its own page.
-    var triggerCandidates: [Stack] { stacks.filter { ($0.state ?? "NONE") != "NONE" } }
+    /// Deploy only lists stacks that have run before: a never-run stack has the state NONE, and its first
+    /// deployment is started from its own page. A preview applies nothing, so it covers every match.
+    var triggerCandidates: [Stack] {
+        triggerAction == .preview ? stacks : stacks.filter { ($0.state ?? "NONE") != "NONE" }
+    }
 
     /// Ticked stacks that are still in the results; ticks for stacks the search no longer shows never count.
     var triggerSelected: [Stack] {
@@ -88,13 +98,16 @@ extension StacksViewModel {
         triggerSelection = all ? Set(triggerCandidates.filter { $0.canWrite != false }.map(\.id)) : []
     }
 
-    /// The user must type `deploy <count>` or `deploy <search>`, so a click cannot start a batch by accident.
+    /// Deploy needs the user to type `deploy <count>` or `deploy <search>`, so a click cannot start it by accident.
+    /// A preview applies nothing and needs no phrase.
     var triggerPhrases: [String] {
+        guard triggerAction == .deploy else { return [] }
         let q = query.trimmingCharacters(in: .whitespaces)
         return ["deploy \(triggerSelected.count)"] + (q.isEmpty ? [] : ["deploy \(q)"])
     }
 
     var triggerPhraseMatches: Bool {
+        if triggerAction == .preview { return true }
         func norm(_ s: String) -> String { s.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ") }
         let typed = norm(triggerPhrase)
         return !typed.isEmpty && triggerPhrases.contains { norm($0) == typed }
@@ -103,6 +116,7 @@ extension StacksViewModel {
     func startBatch() {
         let selected = triggerSelected
         guard actionsEnabled, !selected.isEmpty, !triggerRunning, triggerPhraseMatches else { return }
+        triggerBatchAction = triggerAction
         triggerBatch = selected.map { TriggerItem(stack: $0) }
         triggerRunning = true
         triggerSheet = false
@@ -142,10 +156,11 @@ extension StacksViewModel {
 
     private func triggerOne(_ i: Int) async {
         let id = triggerBatch[i].stack.id
+        let preview = triggerBatchAction == .preview
         triggerBatch[i].status = .starting
         var runID: String?
         do {
-            runID = try await Spacectl.deploy(stackID: id)
+            runID = preview ? try await Spacectl.preview(stackID: id) : try await Spacectl.deploy(stackID: id)
             guard let run = runID else {
                 triggerBatch[i].status = .failed("A run was started but its ID could not be read. Check the stack before triggering again.")
                 return
@@ -155,7 +170,7 @@ extension StacksViewModel {
             while !Spacectl.settledStates.contains(state) {
                 try await Task.sleep(for: .seconds(10))
                 // A failed poll is retried on the next tick; Stop ends the wait.
-                if let s = (try? await Spacectl.runState(stackID: id, runID: run)) ?? nil, s != state {
+                if let s = (try? await Spacectl.runState(stackID: id, runID: run, preview: preview)) ?? nil, s != state {
                     state = s
                     triggerBatch[i].status = .running(runID: run, state: state)
                 }

@@ -68,6 +68,8 @@ final class StacksViewModel {
     var triggerBatch: [TriggerItem] = []
     var triggerRunning = false
     var triggerSheet = false
+    var triggerAction: TriggerAction = .preview       // Preview plans only, so it is the default
+    var triggerBatchAction: TriggerAction = .preview  // what the batch in progress is doing
     var triggerPhrase = ""
     @ObservationIgnored var triggerTask: Task<Void, Never>?
 
