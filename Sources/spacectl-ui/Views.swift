@@ -145,12 +145,13 @@ struct StackListView: View {
                     ForEach(SidebarMode.allCases.filter { $0 != .trigger || model.actionsEnabled }) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented).labelsHidden()
-                if model.sidebarMode != .recent && model.triggerBatch.isEmpty { searchField }
+                if (model.sidebarMode == .search || model.sidebarMode == .trigger) && model.triggerBatch.isEmpty { searchField }
             }
             .padding(12)
 
             switch model.sidebarMode {
             case .search: searchList
+            case .favorites: favoritesList
             case .recent: recentList
             case .trigger: TriggerListView(model: model)
             }
@@ -177,6 +178,27 @@ struct StackListView: View {
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.border))
     }
 
+    private var favoritesList: some View {
+        List(model.favorites, id: \.self, selection: $model.selectedID) { id in
+            HStack(spacing: 10) {
+                Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow).frame(width: 8)
+                Text(id).font(.callout.weight(.medium)).lineLimit(1).truncationMode(.middle)
+            }
+            .tag(id)
+            .padding(.vertical, 3)
+            .contextMenu { Button("Remove from favorites") { model.toggleFavorite(id) } }
+        }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(Theme.sidebar)
+        .overlay {
+            if model.favorites.isEmpty {
+                ContentUnavailableView("No favorite stacks", systemImage: "star",
+                                       description: Text("Star a stack in its header or right-click a stack in the sidebar."))
+            }
+        }
+    }
+
     private var recentList: some View {
         List(model.recents, selection: $model.selectedID) { recent in
             HStack(spacing: 10) {
@@ -186,10 +208,19 @@ struct StackListView: View {
                     Text("Opened \(relativeTime(recent.openedAt))")
                         .font(.caption).foregroundStyle(Theme.muted).lineLimit(1)
                 }
+                if model.isFavorite(recent.id) {
+                    Spacer(minLength: 4)
+                    Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow)
+                }
             }
             .tag(recent.id)
             .padding(.vertical, 3)
-            .contextMenu { Button("Remove from history") { model.removeRecent(recent.id) } }
+            .contextMenu {
+                Button(model.isFavorite(recent.id) ? "Remove from favorites" : "Add to favorites") {
+                    model.toggleFavorite(recent.id)
+                }
+                Button("Remove from history") { model.removeRecent(recent.id) }
+            }
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
@@ -204,11 +235,15 @@ struct StackListView: View {
 
     private var footer: some View {
         HStack {
-            if model.sidebarMode != .recent {
+            switch model.sidebarMode {
+            case .search, .trigger:
                 if model.isSearching { ProgressView().controlSize(.small) }
                 Text(model.stacks.isEmpty ? "" : "\(model.stacks.count) stacks")
                     .font(.caption).foregroundStyle(Theme.muted)
-            } else {
+            case .favorites:
+                Text(model.favorites.isEmpty ? "" : "\(model.favorites.count) \(model.favorites.count == 1 ? "favorite" : "favorites")")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            case .recent:
                 Text(model.recents.isEmpty ? "" : "\(model.recents.count) recent")
                     .font(.caption).foregroundStyle(Theme.muted)
                 if !model.recents.isEmpty {
@@ -241,9 +276,18 @@ struct StackListView: View {
                     Text("\(prettyState(stack.state)) · \(stack.trackedCommit?.authorName ?? "-")")
                         .font(.caption).foregroundStyle(Theme.muted).lineLimit(1)
                 }
+                if model.isFavorite(stack.id) {
+                    Spacer(minLength: 4)
+                    Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow)
+                }
             }
             .tag(stack.id)
             .padding(.vertical, 3)
+            .contextMenu {
+                Button(model.isFavorite(stack.id) ? "Remove from favorites" : "Add to favorites") {
+                    model.toggleFavorite(stack.id)
+                }
+            }
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
@@ -296,6 +340,12 @@ struct StackDetailView: View {
             }
             StateBadge(state: currentState)
             Spacer()
+            Button { model.toggleFavorite(stackID) } label: {
+                Image(systemName: model.isFavorite(stackID) ? "star.fill" : "star")
+                    .foregroundStyle(model.isFavorite(stackID) ? .yellow : .primary)
+            }
+            .buttonStyle(.bordered)
+            .help(model.isFavorite(stackID) ? "Remove from favorites" : "Add to favorites")
             Button { model.closeStack() } label: { Image(systemName: "xmark") }
                 .buttonStyle(.bordered)
                 .help("Close stack (Esc)")

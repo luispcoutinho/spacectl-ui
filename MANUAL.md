@@ -68,7 +68,7 @@ A stack with the state **None** has never run a tracked run. States are shown ti
 
 ## The window
 
-- **Left pane:** finding stacks. A **Search | Recent** switch, plus a **Trigger** segment when actions are enabled. The footer shows how many stacks are listed, a **Clear history** link in Recent, and a ⌘K button.
+- **Left pane:** finding stacks. A **Search | Favorites | Recent** switch, plus a **Trigger** segment when actions are enabled. The footer shows how many stacks are listed, a **Clear history** link in Recent, and a ⌘K button.
 - **Right pane:** the open stack: a header, a row of tabs, and the tab's content. With no stack open it shows "Select a stack".
 - The app uses a dark theme. The minimum window size is 1200 by 650.
 
@@ -82,10 +82,17 @@ A stack with the state **None** has never run a tracked run. States are shown ti
 - Each result shows a colored state dot, the stack ID, the state and the author of the tracked commit.
 - Click a result to open it. The × inside the search field clears the text.
 
+### Favorites
+
+- Keeps the stacks you use most often in a dedicated tab, sorted alphabetically by stack ID.
+- Star or unstar the open stack with the **★** button in its header, or right-click a stack in **Search**, **Favorites**, or **Recent** to **Add to favorites** / **Remove from favorites**.
+- Favorited stacks also show a small star indicator in **Search** and **Recent**, and appear first in the command palette (⌘K).
+- Only the stack **ID** is stored locally, never a state, so nothing shown is stale.
+
 ### Recent
 
 - Lists the last **30** stacks you opened, newest first, without duplicates ("Opened 2 hours ago", or "just now" under a minute).
-- A stack is recorded whenever it becomes the open stack, however you opened it (search, Recent, or the palette).
+- A stack is recorded whenever it becomes the open stack, however you opened it (search, Favorites, Recent, or the palette).
 - Only the stack **ID and the time** are stored, never a state, so nothing shown is stale. The live state loads when you open the stack.
 - Right-click an entry to **Remove from history**, or use **Clear history** in the footer.
 - If a recent stack no longer exists, opening it shows the error `spacectl` returns.
@@ -96,11 +103,11 @@ Press **⌘K** (or click the ⌘K button in the sidebar footer). Press ⌘K agai
 
 | What you type | What you get |
 |---|---|
-| Nothing | If a stack is open: the tab names and Refresh. Then your 8 most recent stacks, then the stacks currently listed in the sidebar search (up to 30) |
+| Nothing | If a stack is open: the tab names and Refresh. Then your favorite stacks, your 8 most recent stacks, and the stacks currently listed in the sidebar search (up to 30) |
 | 1 character | The same list, filtered locally |
 | 2 or more characters | The same, plus a server search for stacks (up to 30), after a 0.3 second pause |
 
-Items are tagged **Tab**, **Action** (Refresh), **Recent** or **Stack**. Use **↑ ↓** to move, **↵** to run the highlighted item and **Esc** to close. Typing several words requires all of them to match.
+Items are tagged **Tab**, **Action** (Refresh), **Favorite**, **Recent** or **Stack**. Use **↑ ↓** to move, **↵** to run the highlighted item and **Esc** to close. Typing several words requires all of them to match.
 
 The palette opens stacks and jumps between tabs. It never starts or retries runs.
 
@@ -110,6 +117,7 @@ Shows the stack ID (selectable, so you can copy it), `repository · branch`, and
 
 | Button | What it does | Availability |
 |---|---|---|
+| **★** | Adds or removes the stack from Favorites | Always |
 | **Trigger** | Starts the stack's first run | Only with actions enabled; see [Trigger button](#trigger-button-first-run) |
 | **Refresh** (⌘R) | Discards the cached data for the open stack and reloads the current tab | Always |
 | **×** | Closes the stack and stops any live log stream | Always |
@@ -375,7 +383,7 @@ Notes:
 - **Caching.** Each piece of data loads once per stack and is kept until you press **Refresh** (⌘R) or open another stack. Switching tabs does not re-fetch.
 - **Refresh** clears everything for the open stack and reloads what the current tab needs.
 - If the preview-runs call fails, the app still shows tracked runs.
-- The sidebar never loads more than the search results. Opening a stack loads it on its own, so a stack opened from Recent shows its live state even if it is not in the search results.
+- The sidebar never loads more than the search results. Opening a stack loads it on its own, so a stack opened from Favorites or Recent shows its live state even if it is not in the search results.
 - When a command prints an empty list as `null`, the app treats it as "no rows".
 - Starting a run is not undone by closing the app or pressing Stop: the run exists in Spacelift once the command succeeds.
 
@@ -393,9 +401,9 @@ Notes:
 
 ## Stored data and reset
 
-The app stores two things in macOS preferences under `io.github.luispcoutinho.spacectl-ui`: the recent stacks (IDs and times) and the "Enable actions" setting. It stores no credentials: authentication belongs to `spacectl` and its own configuration. It writes no files of its own.
+The app stores three things in macOS preferences under `io.github.luispcoutinho.spacectl-ui`: your favorite stacks (IDs), the recent stacks (IDs and times) and the "Enable actions" setting. It stores no credentials: authentication belongs to `spacectl` and its own configuration. It writes no files of its own.
 
-To reset everything (history, and actions back to off):
+To reset everything (favorites, history, and actions back to off):
 
 ```bash
 defaults delete io.github.luispcoutinho.spacectl-ui

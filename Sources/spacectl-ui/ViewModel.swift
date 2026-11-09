@@ -51,8 +51,9 @@ final class StacksViewModel {
     var outputs: Load<[OutputRow]> = .idle
     var environment: Load<[EnvRow]> = .idle
 
-    // Sidebar: search results or previously opened stacks (behaviour lives in Recents.swift)
+    // Sidebar: search results, favorites or previously opened stacks (behaviour lives in Recents.swift)
     var sidebarMode: SidebarMode = .search
+    var favorites: [String] = FavoriteStacks.load()
     var recents: [RecentStack] = RecentStack.load()
 
     // Actions that change Spacelift state (behaviour lives in Trigger.swift). Off until the user opts in.

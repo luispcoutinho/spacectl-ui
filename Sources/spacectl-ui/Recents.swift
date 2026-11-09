@@ -3,9 +3,22 @@ import Foundation
 
 enum SidebarMode: String, CaseIterable, Identifiable {
     case search = "Search"
+    case favorites = "Favorites"
     case recent = "Recent"
     case trigger = "Trigger"   // only offered when actions are enabled
     var id: String { rawValue }
+}
+
+enum FavoriteStacks {
+    private static let key = "favoriteStacks"
+
+    static func load() -> [String] {
+        (UserDefaults.standard.stringArray(forKey: key) ?? []).sorted()
+    }
+
+    static func save(_ list: [String]) {
+        UserDefaults.standard.set(list, forKey: key)
+    }
 }
 
 /// A stack the user opened before. Only the ID is kept: any state saved here would be stale on the next launch.
@@ -51,6 +64,20 @@ extension StacksViewModel {
     func clearRecents() {
         recents = []
         RecentStack.save(recents)
+    }
+
+    func isFavorite(_ id: String) -> Bool {
+        favorites.contains(id)
+    }
+
+    func toggleFavorite(_ id: String) {
+        if let i = favorites.firstIndex(of: id) {
+            favorites.remove(at: i)
+        } else {
+            favorites.append(id)
+            favorites.sort()
+        }
+        FavoriteStacks.save(favorites)
     }
 
     /// Back to the empty state; selecting nothing also cancels loads and stops any log stream.

@@ -88,9 +88,16 @@ extension StacksViewModel {
         }
 
         let q = paletteQuery.trimmingCharacters(in: .whitespaces)
-        // Recently opened stacks come first, so an empty palette is a quick way back.
+        // Favorites and recently opened stacks come first, so an empty palette is a quick way back.
         var seen = Set<String>()
-        for r in recents.filter({ matches($0.id) }).prefix(q.isEmpty ? 8 : 30) {
+        for id in favorites.filter({ matches($0) }).prefix(30) {
+            seen.insert(id)
+            let subtitle = recents.first { $0.id == id }.map { "Opened \(relativeTime($0.openedAt))" } ?? "Favorite stack"
+            items.append(PaletteItem(id: "fav-\(id)", title: id,
+                                     subtitle: subtitle,
+                                     icon: "star.fill", badge: "Favorite", kind: .stackID(id)))
+        }
+        for r in recents.filter({ matches($0.id) && !seen.contains($0.id) }).prefix(q.isEmpty ? 8 : 30) {
             seen.insert(r.id)
             items.append(PaletteItem(id: "recent-\(r.id)", title: r.id,
                                      subtitle: "Opened \(relativeTime(r.openedAt))",
