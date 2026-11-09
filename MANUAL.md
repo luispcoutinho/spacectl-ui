@@ -117,6 +117,7 @@ Shows the stack ID (selectable, so you can copy it), `repository · branch`, and
 
 | Button | What it does | Availability |
 |---|---|---|
+| **Copy stack link** | Copies `<endpoint>/stack/<stackID>` to the clipboard | Always (also in the sidebar right-click menu) |
 | **★** | Adds or removes the stack from Favorites | Always |
 | **Trigger** | Starts the stack's first run | Only with actions enabled; see [Trigger button](#trigger-button-first-run) |
 | **Refresh** (⌘R) | Discards the cached data for the open stack and reloads the current tab | Always |
@@ -182,6 +183,7 @@ The top half is the list of runs; the bottom half shows the **changes** of the s
 |---|---|---|
 | Double-click, or right-click > **Open logs** | Opens the Logs tab on that run | Always |
 | Right-click > **Follow live** | Opens Live logs on that run | Enabled only for runs still in progress |
+| Right-click > **Copy run link** | Copies `<endpoint>/stack/<stackID>/run/<runID>` to the clipboard | Always |
 | Right-click > **Details**, **⌘I** or the ⓘ button | Popover with the run's fields (same as the Overview card) | Always |
 | Right-click > **Retry failed run** | See [Retry failed run](#retry-failed-run) | Actions enabled and the run is Failed |
 
@@ -210,6 +212,8 @@ The recorded logs of one run, for reading after the fact.
 Each heading shows the phase name and the timestamp Spacelift recorded. Everything else is plain monospaced text. Terminal color codes are stripped.
 
 - **Auto-scroll** keeps the view at the newest line while output arrives.
+- **Copy run link** copies `<endpoint>/stack/<stackID>/run/<runID>` for the selected run.
+- **Download logs** saves the displayed logs to a `.log` file (`<stackID>-<runID>.log`, or `<stackID>-<runID>-<phase>.log` when a phase is selected).
 - **⌘F** opens the find bar (case-insensitive incremental search). The text is selectable and copyable.
 - Large logs load in batches, so the view stays responsive. Changing the run or the phase restarts the load.
 
@@ -217,7 +221,7 @@ Each heading shows the phase name and the timestamp Spacelift recorded. Everythi
 
 Follows a run as it happens (`spacectl ... --tail`). It is a stream, not polling: new lines appear as Spacelift produces them.
 
-- Uses the same **Run** picker and the same colored phase headings.
+- Uses the same **Run** picker, the same colored phase headings, and the **Copy run link** and **Download logs** buttons.
 - **Stop** ends the stream; **Follow again** restarts it.
 - Leaving the tab, closing the stack, refreshing or switching runs stops the stream.
 - On a run that is already finished, it should simply replay the logs.
@@ -366,6 +370,7 @@ Every read is a `spacectl` command. The app never contacts Spacelift directly.
 
 | What you see | Command | When it runs |
 |---|---|---|
+| Account base URL | `profile list -o json` | Once on launch (or when copying a link) |
 | Search results | `stack list --search <text> --limit <n>` | After you stop typing (2+ characters) |
 | Header and Overview cards | `stack show` | When a stack opens, and on Refresh |
 | Run history, latest run | `stack run list` (tracked) and `stack run list --preview-runs` (proposed and drift), in parallel | Overview, Run history, Logs and Live logs; and for every tab when actions are enabled |

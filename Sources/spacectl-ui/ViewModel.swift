@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -42,6 +43,11 @@ final class StacksViewModel {
     var autoscroll = true
     var runFilter: RunFilter = .all
     var detailsRunID: String?      // run whose details popover is open in Run history
+    var endpoint: String?          // base URL of the active Spacelift profile
+    var copiedStackLink = false
+    var copiedRunLink = false
+    @ObservationIgnored private var copyStackTask: Task<Void, Never>?
+    @ObservationIgnored private var copyRunTask: Task<Void, Never>?
 
     // Selection and per-stack data, each loaded on demand
     var selectedID: String?
@@ -94,6 +100,10 @@ final class StacksViewModel {
     var latestRun: Run? { runs.value?.first { $0.kind == .tracked } ?? runs.value?.first }
     var effectiveRunID: String? { logRunID ?? latestRun?.id }
 
+    init() {
+        Task { endpoint = await Spacectl.currentEndpoint() }
+    }
+
     // MARK: Search
 
     /// Debounced server-side search; a newer keystroke cancels the previous request's result.
@@ -136,7 +146,9 @@ final class StacksViewModel {
     private func resetData() {
         tasks.forEach { $0.cancel() }
         tasks.removeAll()
-        logs.stop(); live.stop()
+        logs.clear(); live.clear()
+        copyStackTask?.cancel(); copyRunTask?.cancel()
+        copiedStackLink = false; copiedRunLink = false
         detailsRunID = nil
         stack = .idle; runs = .idle; changes = [:]; outputs = .idle; environment = .idle
         logRunID = nil
@@ -214,10 +226,58 @@ final class StacksViewModel {
         tasks.append(task)
     }
 
-    // MARK: Logs
+    // MARK: Links & logs
+
+    func copyStackLink(_ stackID: String) {
+        Task {
+            if endpoint == nil { endpoint = await Spacectl.currentEndpoint() }
+            guard let endpoint else { return }
+            copyToPasteboard("\(endpoint)/stack/\(stackID)")
+            copiedStackLink = true
+            copyStackTask?.cancel()
+            copyStackTask = Task {
+                try? await Task.sleep(for: .milliseconds(1200))
+                if !Task.isCancelled { copiedStackLink = false }
+            }
+        }
+    }
+
+    func copyRunLink(_ runID: String?) {
+        guard let stackID = selectedID, let runID else { return }
+        Task {
+            if endpoint == nil { endpoint = await Spacectl.currentEndpoint() }
+            guard let endpoint else { return }
+            copyToPasteboard("\(endpoint)/stack/\(stackID)/run/\(runID)")
+            copiedRunLink = true
+            copyRunTask?.cancel()
+            copyRunTask = Task {
+                try? await Task.sleep(for: .milliseconds(1200))
+                if !Task.isCancelled { copiedRunLink = false }
+            }
+        }
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
 
     func startLogs(_ streamer: LogStreamer, follow: Bool) {
         guard let id = selectedID, let runID = effectiveRunID else { return }
         streamer.start(stackID: id, runID: runID, phase: follow ? "" : logPhase, follow: follow)
+    }
+
+    func downloadLogs(_ streamer: LogStreamer, follow: Bool) {
+        guard let stackID = selectedID, let runID = effectiveRunID, streamer.hasLogs else { return }
+        let phaseSuffix = (!follow && !logPhase.isEmpty) ? "-\(logPhase.lowercased())" : ""
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(stackID)-\(runID)\(phaseSuffix).log"
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try streamer.rawText.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            actionError = error.localizedDescription
+        }
     }
 }

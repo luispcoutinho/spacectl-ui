@@ -8,11 +8,13 @@ import SwiftUI
 @MainActor
 final class LogStreamer {
     var isRunning = false
+    var hasLogs = false
     var error: String?
 
     // The text view subscribes to these; logs can be megabytes, so they never live in SwiftUI state.
     @ObservationIgnored var onChunk: ((String) -> Void)?
     @ObservationIgnored var onReset: (() -> Void)?
+    @ObservationIgnored private(set) var rawText = ""
 
     @ObservationIgnored private var process: Process?
     @ObservationIgnored private var readTask: Task<Void, Never>?
@@ -27,6 +29,8 @@ final class LogStreamer {
         generation += 1
         let gen = generation
         error = nil
+        rawText = ""
+        hasLogs = false
         onReset?()
 
         guard let path = Spacectl.locate() else { error = SpacectlError.notFound.localizedDescription; return }
@@ -79,12 +83,21 @@ final class LogStreamer {
         isRunning = false
     }
 
+    func clear() {
+        stop()
+        rawText = ""
+        hasLogs = false
+    }
+
     private func flush(_ gen: Int) {
         guard gen == generation, !buffer.isEmpty else { return }
         let text = buffer.joined(separator: "\n") + "\n"
         buffer.removeAll(keepingCapacity: true)
         let range = NSRange(text.startIndex..., in: text)
-        onChunk?(Self.ansi.stringByReplacingMatches(in: text, range: range, withTemplate: ""))
+        let clean = Self.ansi.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+        rawText.append(clean)
+        if !hasLogs && !clean.isEmpty { hasLogs = true }
+        onChunk?(clean)
     }
 }
 

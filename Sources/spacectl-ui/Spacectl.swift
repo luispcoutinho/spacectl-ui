@@ -73,6 +73,28 @@ enum Spacectl {
 
     // MARK: Queries
 
+    private struct ProfileEntry: Decodable {
+        var current: Bool?
+        var endpoint: String?
+    }
+
+    /// Base URL of the active Spacelift account (from `SPACELIFT_API_KEY_ENDPOINT` or the current `spacectl` profile).
+    static func currentEndpoint() async -> String? {
+        if let env = ProcessInfo.processInfo.environment["SPACELIFT_API_KEY_ENDPOINT"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines), !env.isEmpty {
+            return trimSlash(env)
+        }
+        guard let data = try? await run(["profile", "list", "-o", "json"]),
+              let profiles = try? decodeList(ProfileEntry.self, from: data),
+              let endpoint = profiles.first(where: { $0.current == true })?.endpoint,
+              !endpoint.isEmpty else { return nil }
+        return trimSlash(endpoint)
+    }
+
+    private static func trimSlash(_ s: String) -> String {
+        s.hasSuffix("/") ? String(s.dropLast()) : s
+    }
+
     /// Server-side search: listing every stack without a filter is far too slow for an interactive UI.
     static func searchStacks(_ query: String, limit: Int = 200) async throws -> [Stack] {
         let data = try await run(["stack", "list", "-o", "json", "--search", query, "--limit", String(limit)])

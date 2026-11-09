@@ -186,7 +186,10 @@ struct StackListView: View {
             }
             .tag(id)
             .padding(.vertical, 3)
-            .contextMenu { Button("Remove from favorites") { model.toggleFavorite(id) } }
+            .contextMenu {
+                Button("Copy stack link") { model.copyStackLink(id) }
+                Button("Remove from favorites") { model.toggleFavorite(id) }
+            }
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
@@ -216,6 +219,7 @@ struct StackListView: View {
             .tag(recent.id)
             .padding(.vertical, 3)
             .contextMenu {
+                Button("Copy stack link") { model.copyStackLink(recent.id) }
                 Button(model.isFavorite(recent.id) ? "Remove from favorites" : "Add to favorites") {
                     model.toggleFavorite(recent.id)
                 }
@@ -284,6 +288,7 @@ struct StackListView: View {
             .tag(stack.id)
             .padding(.vertical, 3)
             .contextMenu {
+                Button("Copy stack link") { model.copyStackLink(stack.id) }
                 Button(model.isFavorite(stack.id) ? "Remove from favorites" : "Add to favorites") {
                     model.toggleFavorite(stack.id)
                 }
@@ -340,6 +345,11 @@ struct StackDetailView: View {
             }
             StateBadge(state: currentState)
             Spacer()
+            Button { model.copyStackLink(stackID) } label: {
+                Image(systemName: model.copiedStackLink ? "checkmark" : "link")
+            }
+            .buttonStyle(.bordered)
+            .help("Copy stack link")
             Button { model.toggleFavorite(stackID) } label: {
                 Image(systemName: model.isFavorite(stackID) ? "star.fill" : "star")
                     .foregroundStyle(model.isFavorite(stackID) ? .yellow : .primary)
@@ -678,6 +688,7 @@ struct HistorySection: View {
                 Button("Open logs") { model.openLogs(id) }
                 Button("Follow live") { model.openLogs(id, live: true) }
                     .disabled(!(runs.first { $0.id == id }?.isInProgress ?? false))
+                Button("Copy run link") { model.copyRunLink(id) }
                 if model.actionsEnabled, let run = runs.first(where: { $0.id == id }), run.state == "FAILED" {
                     Divider()
                     Button("Retry failed run") { model.requestRetry(run) }
@@ -825,6 +836,18 @@ struct LogsPane: View {
                             .disabled(model.effectiveRunID == nil)
                     }
                 }
+                Button { model.copyRunLink(model.effectiveRunID) } label: {
+                    Image(systemName: model.copiedRunLink ? "checkmark" : "link")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.effectiveRunID == nil)
+                .help("Copy run link")
+                Button { model.downloadLogs(streamer, follow: follow) } label: {
+                    Image(systemName: "arrow.down.to.line")
+                }
+                .buttonStyle(.bordered)
+                .disabled(!streamer.hasLogs)
+                .help("Download logs")
             }
             .padding(10)
 

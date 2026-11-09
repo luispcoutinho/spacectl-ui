@@ -38,10 +38,10 @@ The app looks for `spacectl` in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local
 
 - Search is server-side and needs 2+ characters, because listing every stack takes minutes.
 - Run history lists tracked, proposed and drift-detection runs (Type column, filter on top). Overview and the default run for Logs and changes use the latest tracked run.
-- Run history: select a row to see that run's changes below it and to choose the run Logs and Live logs show. Double-click jumps to its logs. Right-click offers Details, Open logs and Follow live (only for runs in progress); Cmd+I or the info button at the start of a row shows that run's details.
-- Logs show each phase (Queued, Preparing, Planning, Applying, Finished…) as a colored heading with extra spacing.
+- Run history: select a row to see that run's changes below it and to choose the run Logs and Live logs show. Double-click jumps to its logs. Right-click offers Details, Open logs, Follow live (only for runs in progress) and Copy run link; Cmd+I or the info button at the start of a row shows that run's details.
+- Logs show each phase (Queued, Preparing, Planning, Applying, Finished…) as a colored heading with extra spacing. Both Logs and Live logs include toolbar buttons to copy the run link and download the log file.
 - Live logs follows a run with `spacectl --tail`; there is no push API, so it is a stream, not polling.
-- The sidebar has **Search**, **Favorites**, and **Recent** (for the last 30 stacks you opened; both keep stack IDs locally only). Star a stack in its header or right-click a row to add or remove a favorite; right-click a recent to remove it, or use "Clear history".
+- The sidebar has **Search**, **Favorites**, and **Recent** (for the last 30 stacks you opened; both keep stack IDs locally only). Star a stack or copy its Spacelift link in the header, or right-click a row in the sidebar; right-click a recent to remove it, or use "Clear history".
 - The × button in the stack header, or Esc, closes the open stack (and stops a live log stream).
 - Cmd+K opens the command palette: type to search stacks on the server, jump to a tab, or refresh. Arrow keys and Return to pick, Esc to close.
 - Refresh with Cmd+R.
