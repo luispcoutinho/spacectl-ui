@@ -224,7 +224,7 @@ The stack's outputs, flattened into one row per value: **Output**, **Path** and 
 
 ### Environment
 
-The stack's environment variables: **Name**, **Type** (for example environment variable or mounted file), **Value** and **Context** (where it comes from). Write-only values show `*****`, and values computed at run time show `<computed>`.
+The stack's environment variables: **Name**, **Type** (for example environment variable or mounted file), **Value** and **Context** (where it comes from). Write-only values show `*****`, and values computed at run time show `<computed>`. A filter box above the table narrows the rows by name, type, value or context.
 
 ### Everything
 

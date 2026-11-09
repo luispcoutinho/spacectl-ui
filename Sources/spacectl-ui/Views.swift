@@ -676,22 +676,38 @@ struct OutputsSection: View {
 }
 
 struct EnvironmentSection: View {
-    var model: StacksViewModel
+    @Bindable var model: StacksViewModel
     let embedded: Bool
 
+    private func filtered(_ rows: [EnvRow]) -> [EnvRow] {
+        let f = model.environmentFilter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !f.isEmpty else { return rows }
+        return rows.filter {
+            $0.name.lowercased().contains(f) || $0.type.lowercased().contains(f)
+                || $0.value.lowercased().contains(f) || $0.context.lowercased().contains(f)
+        }
+    }
+
     var body: some View {
-        LoadView(state: model.environment) { rows in
-            if rows.isEmpty {
+        LoadView(state: model.environment) { all in
+            if all.isEmpty {
                 ContentUnavailableView("No environment variables", systemImage: "tray")
             } else {
-                Table(rows) {
-                    TableColumn("Name") { Text($0.name).textSelection(.enabled) }.width(min: 180, ideal: 260)
-                    TableColumn("Type", value: \.type).width(min: 100, ideal: 150)
-                    TableColumn("Value") { Text($0.value).textSelection(.enabled) }
-                    TableColumn("Context", value: \.context).width(min: 100, ideal: 180)
+                let rows = filtered(all)
+                VStack(spacing: 0) {
+                    if !embedded {
+                        TextField("Filter environment", text: $model.environmentFilter)
+                            .textFieldStyle(.roundedBorder).padding([.horizontal, .top], 16)
+                    }
+                    Table(rows) {
+                        TableColumn("Name") { Text($0.name).textSelection(.enabled) }.width(min: 180, ideal: 260)
+                        TableColumn("Type", value: \.type).width(min: 100, ideal: 150)
+                        TableColumn("Value") { Text($0.value).textSelection(.enabled) }
+                        TableColumn("Context", value: \.context).width(min: 100, ideal: 180)
+                    }
+                    .frame(height: tableHeight(rows.count, embedded: embedded))
+                    .tableSurface(embedded: embedded)
                 }
-                .frame(height: tableHeight(rows.count, embedded: embedded))
-                .tableSurface(embedded: embedded)
             }
         }
     }
