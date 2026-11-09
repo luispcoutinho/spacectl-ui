@@ -22,7 +22,7 @@ jobs:
   release:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Resolve version
         id: v
@@ -45,7 +45,7 @@ jobs:
           shasum -a 256 spacectl-ui-*.zip > SHA256SUMS
           cat SHA256SUMS
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.v.outputs.skip != 'true'
         with:
           name: spacectl-ui
@@ -54,7 +54,7 @@ jobs:
       # Provenance proves the zip came from this workflow. Private repos need a paid plan for it.
       - name: Attest build provenance
         if: ${{ steps.v.outputs.skip != 'true' && !github.event.repository.private }}
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/spacectl-ui-*.zip
 
