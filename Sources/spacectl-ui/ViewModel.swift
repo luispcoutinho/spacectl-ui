@@ -36,6 +36,7 @@ final class StacksViewModel {
     // UI state (kept here rather than in @State: that macro plugin ships with Xcode only)
     var tab: DetailTab = .overview
     var outputFilter = ""
+    var environmentFilter = ""
     var logPhase = ""
     var logRunID: String?          // chosen in Run history or the logs header; defaults to the latest run
     var autoscroll = true
