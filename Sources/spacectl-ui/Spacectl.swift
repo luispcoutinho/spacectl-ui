@@ -78,6 +78,24 @@ enum Spacectl {
         var endpoint: String?
     }
 
+    private struct WorkerPoolEntry: Decodable {
+        var id: String
+        var name: String
+        var busyWorkers: Int?
+        var registeredWorkers: Int?
+        var pendingRuns: Int?
+    }
+
+    private struct PublicWorkerPoolResponse: Decodable {
+        struct DataBody: Decodable { var publicWorkerPool: Pool? }
+        struct Pool: Decodable {
+            var parallelism: Int?
+            var busyWorkers: Int?
+            var pendingRuns: Int?
+        }
+        var data: DataBody?
+    }
+
     /// Base URL of the active Spacelift account (from `SPACELIFT_API_KEY_ENDPOINT` or the current `spacectl` profile).
     static func currentEndpoint() async -> String? {
         if let env = ProcessInfo.processInfo.environment["SPACELIFT_API_KEY_ENDPOINT"]?
@@ -89,6 +107,39 @@ enum Spacectl {
               let endpoint = profiles.first(where: { $0.current == true })?.endpoint,
               !endpoint.isEmpty else { return nil }
         return trimSlash(endpoint)
+    }
+
+    /// Status of the account's default worker pool (`workerpool list`), or the public pool when no private pools exist.
+    static func defaultWorkerPoolStatus() async throws -> WorkerPoolStatus {
+        let data = try await run(["workerpool", "list", "-o", "json"])
+        let pools = try decodeList(WorkerPoolEntry.self, from: data)
+        if let chosen = pickDefaultPool(from: pools) {
+            return WorkerPoolStatus(
+                id: chosen.id,
+                name: chosen.name,
+                busyWorkers: chosen.busyWorkers ?? 0,
+                registeredWorkers: chosen.registeredWorkers ?? 0,
+                pendingRuns: chosen.pendingRuns ?? 0,
+                isPublic: false
+            )
+        }
+        let pubData = try await run(["api", "query { publicWorkerPool { parallelism busyWorkers pendingRuns } }"])
+        let pub = try decode(PublicWorkerPoolResponse.self, from: pubData).data?.publicWorkerPool
+        return WorkerPoolStatus(
+            id: nil,
+            name: "Public",
+            busyWorkers: pub?.busyWorkers ?? 0,
+            registeredWorkers: pub?.parallelism ?? 0,
+            pendingRuns: pub?.pendingRuns ?? 0,
+            isPublic: true
+        )
+    }
+
+    private static func pickDefaultPool(from pools: [WorkerPoolEntry]) -> WorkerPoolEntry? {
+        guard !pools.isEmpty else { return nil }
+        let defaults = pools.filter { $0.name.localizedCaseInsensitiveContains("default") }
+        let candidates = defaults.isEmpty ? pools : defaults
+        return candidates.sorted { ($0.registeredWorkers ?? 0) > ($1.registeredWorkers ?? 0) }.first
     }
 
     private static func trimSlash(_ s: String) -> String {

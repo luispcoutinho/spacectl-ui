@@ -44,10 +44,14 @@ final class StacksViewModel {
     var runFilter: RunFilter = .all
     var detailsRunID: String?      // run whose details popover is open in Run history
     var endpoint: String?          // base URL of the active Spacelift profile
+    var workerPool: Load<WorkerPoolStatus> = .idle
+    var workerPoolRefreshing = false
     var copiedStackLink = false
     var copiedRunLink = false
     @ObservationIgnored private var copyStackTask: Task<Void, Never>?
     @ObservationIgnored private var copyRunTask: Task<Void, Never>?
+    @ObservationIgnored private var workerPoolTask: Task<Void, Never>?
+    @ObservationIgnored private var workerPoolLoopTask: Task<Void, Never>?
 
     // Selection and per-stack data, each loaded on demand
     var selectedID: String?
@@ -102,6 +106,8 @@ final class StacksViewModel {
 
     init() {
         Task { endpoint = await Spacectl.currentEndpoint() }
+        refreshWorkerPool()
+        startWorkerPoolLoop()
     }
 
     // MARK: Search
@@ -141,6 +147,7 @@ final class StacksViewModel {
     func refresh() {
         resetData()
         ensure(tab)
+        refreshWorkerPool()
     }
 
     private func resetData() {
@@ -226,7 +233,52 @@ final class StacksViewModel {
         tasks.append(task)
     }
 
-    // MARK: Links & logs
+    // MARK: Worker pool, links & logs
+
+    private func startWorkerPoolLoop() {
+        workerPoolLoopTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                if Task.isCancelled { break }
+                self?.refreshWorkerPool(silent: true)
+            }
+        }
+    }
+
+    func refreshWorkerPool(silent: Bool = false) {
+        guard !spacectlMissing else {
+            workerPool = .failed("spacectl not found")
+            return
+        }
+        workerPoolTask?.cancel()
+        if workerPool.value == nil {
+            workerPool = .loading
+        } else if !silent {
+            workerPoolRefreshing = true
+        }
+        workerPoolTask = Task {
+            defer { if !Task.isCancelled { workerPoolRefreshing = false } }
+            do {
+                let status = try await Spacectl.defaultWorkerPoolStatus()
+                if Task.isCancelled { return }
+                workerPool = .loaded(status)
+            } catch {
+                if Task.isCancelled { return }
+                workerPool = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    func openWorkerPoolsPage() {
+        Task {
+            if endpoint == nil { endpoint = await Spacectl.currentEndpoint() }
+            guard let endpoint, let url = URL(string: "\(endpoint)/worker-pools") else {
+                actionError = "Could not determine the active Spacelift endpoint. Check `spacectl profile list`."
+                return
+            }
+            NSWorkspace.shared.open(url)
+        }
+    }
 
     func copyStackLink(_ stackID: String) {
         Task {
