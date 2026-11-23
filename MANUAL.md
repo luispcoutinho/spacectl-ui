@@ -70,6 +70,7 @@ A stack with the state **None** has never run a tracked run. States are shown ti
 
 - **Left pane:** finding stacks. A **Search | Favorites | Recent** switch, plus a **Trigger** segment when actions are enabled. The footer shows how many stacks are listed, a **Clear history** link in Recent, and a ⌘K button.
 - **Right pane:** the open stack: a header, a row of tabs, and the tab's content. With no stack open it shows "Select a stack".
+- **Top-right toolbar:** status of the account's default worker pool (`busy/registered` workers and queued runs, with a green/orange/red health dot; hover for full details, click to refresh) and an external-link button that opens `<endpoint>/worker-pools` in your browser. The app picks the pool whose name contains `default` (case-insensitive), falling back to the largest private pool, or to the public worker pool when no private pools exist.
 - The app uses a dark theme. The minimum window size is 1200 by 650.
 
 ## Finding stacks
@@ -370,7 +371,8 @@ Every read is a `spacectl` command. The app never contacts Spacelift directly.
 
 | What you see | Command | When it runs |
 |---|---|---|
-| Account base URL | `profile list -o json` | Once on launch (or when copying a link) |
+| Account base URL | `profile list -o json` | Once on launch (or when opening/copying a link) |
+| Default worker pool status | `workerpool list -o json` (or `api` `publicWorkerPool` when no private pools exist) | On launch, every 60 seconds, on click, and on Refresh (⌘R) |
 | Search results | `stack list --search <text> --limit <n>` | After you stop typing (2+ characters) |
 | Header and Overview cards | `stack show` | When a stack opens, and on Refresh |
 | Run history, latest run | `stack run list` (tracked) and `stack run list --preview-runs` (proposed and drift), in parallel | Overview, Run history, Logs and Live logs; and for every tab when actions are enabled |
@@ -397,7 +399,7 @@ Notes:
 | Shortcut | Action |
 |---|---|
 | ⌘K | Open or close the command palette |
-| ⌘R | Refresh the open stack |
+| ⌘R | Refresh the open stack and worker pool status |
 | ⌘I | Toggle run details (Run history tab) |
 | ⌘F | Find in logs |
 | ⌘, | Settings |
@@ -425,6 +427,7 @@ defaults delete io.github.luispcoutinho.spacectl-ui
 | Runs fetched per type | 10 tracked and 10 proposed (including drift) |
 | Runs in progress at once in a batch | 3 |
 | Batch state check interval | 10 seconds |
+| Worker pool refresh interval | 60 seconds |
 | Minimum window size | 1200 by 650 |
 
 ## Troubleshooting and FAQ

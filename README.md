@@ -44,6 +44,7 @@ The app looks for `spacectl` in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local
 - The sidebar has **Search**, **Favorites**, and **Recent** (for the last 30 stacks you opened; both keep stack IDs locally only). Star a stack or copy its Spacelift link in the header, or right-click a row in the sidebar; right-click a recent to remove it, or use "Clear history".
 - The × button in the stack header, or Esc, closes the open stack (and stops a live log stream).
 - Cmd+K opens the command palette: type to search stacks on the server, jump to a tab, or refresh. Arrow keys and Return to pick, Esc to close.
+- The top-right window toolbar shows the status of the default worker pool (`busy/registered` workers and queued runs, refreshed every 60s, on click, or with Cmd+R) and a button to open the Spacelift Worker Pools page in your browser.
 - Refresh with Cmd+R.
 
 ## Actions (off by default)

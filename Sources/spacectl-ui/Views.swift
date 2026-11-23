@@ -55,6 +55,74 @@ struct LoadView<T, Content: View>: View {
 
 func yesNo(_ b: Bool?) -> String { b.map { $0 ? "yes" : "no" } ?? "-" }
 
+/// Top-right toolbar pill showing the default Spacelift worker pool's capacity and queue; click to refresh.
+struct WorkerPoolStatusButton: View {
+    var model: StacksViewModel
+
+    private func color(for pool: WorkerPoolStatus) -> Color {
+        if pool.registeredWorkers <= 0 { return .red }
+        if pool.busyWorkers >= pool.registeredWorkers || pool.pendingRuns > 0 { return .orange }
+        return .green
+    }
+
+    private var dotColor: Color {
+        switch model.workerPool {
+        case .idle, .loading: return Theme.muted
+        case .failed: return .red
+        case .loaded(let pool): return color(for: pool)
+        }
+    }
+
+    private func shortName(_ name: String) -> String {
+        name.count > 28 ? String(name.prefix(27)) + "…" : name
+    }
+
+    private func metrics(for pool: WorkerPoolStatus) -> String {
+        let base = "\(pool.busyWorkers)/\(pool.registeredWorkers) busy"
+        return pool.pendingRuns > 0 ? "\(base) · \(pool.pendingRuns) queued" : base
+    }
+
+    private var helpText: String {
+        switch model.workerPool {
+        case .idle, .loading:
+            return "Loading default worker pool status…"
+        case .failed(let error):
+            return "Worker pool check failed: \(error)\nClick to retry"
+        case .loaded(let pool):
+            let idLabel = pool.isPublic ? "public" : (pool.id ?? "-")
+            return "\(pool.name) (\(idLabel))\nBusy workers: \(pool.busyWorkers) / \(pool.registeredWorkers)\nQueued runs: \(pool.pendingRuns)\nUpdated \(formatTimestamp(pool.updatedAt.timeIntervalSince1970)) — click to refresh"
+        }
+    }
+
+    var body: some View {
+        Button { model.refreshWorkerPool() } label: {
+            HStack(spacing: 6) {
+                if model.workerPool.isLoading || model.workerPoolRefreshing {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Circle().fill(dotColor).frame(width: 7, height: 7)
+                }
+                switch model.workerPool {
+                case .idle, .loading:
+                    Text("Worker pool…").font(.caption).foregroundStyle(Theme.muted)
+                case .failed:
+                    Text("Worker pool unavailable").font(.caption.weight(.medium)).foregroundStyle(.red)
+                case .loaded(let pool):
+                    let c = color(for: pool)
+                    Text(shortName(pool.name)).font(.caption.weight(.semibold)).foregroundStyle(.primary)
+                    Text("·").font(.caption).foregroundStyle(Theme.muted)
+                    Text(metrics(for: pool))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(c == .green ? Theme.muted : c)
+                }
+            }
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .fixedSize()
+        }
+        .help(helpText)
+    }
+}
+
 // MARK: - Root
 
 struct ContentView: View {
@@ -66,13 +134,30 @@ struct ContentView: View {
             StackListView(model: model)
                 .navigationSplitViewColumnWidth(min: 300, ideal: 380)
         } detail: {
-            if let id = model.selectedID {
-                StackDetailView(model: model, stackID: id)
-            } else {
-                ContentUnavailableView("Select a stack", systemImage: "square.stack.3d.up",
-                                       description: Text("Search on the left, or press ⌘K to jump to a stack."))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Theme.bg)
+            Group {
+                if let id = model.selectedID {
+                    StackDetailView(model: model, stackID: id)
+                } else {
+                    ContentUnavailableView("Select a stack", systemImage: "square.stack.3d.up",
+                                           description: Text("Search on the left, or press ⌘K to jump to a stack."))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Theme.bg)
+                        .background {
+                            Button("") { model.refreshWorkerPool() }
+                                .keyboardShortcut("r", modifiers: .command)
+                                .opacity(0).frame(width: 0, height: 0)
+                        }
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    WorkerPoolStatusButton(model: model)
+                    Button { model.openWorkerPoolsPage() } label: {
+                        Image(systemName: "arrow.up.right.square")
+                    }
+                    .disabled(model.spacectlMissing)
+                    .help("Open worker pools in browser")
+                }
             }
         }
         .frame(minWidth: 1200, minHeight: 650)

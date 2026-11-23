@@ -14,6 +14,16 @@ struct WorkerPool: Decodable, Hashable {
     var name: String?
 }
 
+struct WorkerPoolStatus: Hashable {
+    var id: String?
+    var name: String
+    var busyWorkers: Int
+    var registeredWorkers: Int
+    var pendingRuns: Int
+    var isPublic: Bool
+    var updatedAt = Date()
+}
+
 struct Stack: Decodable, Identifiable, Hashable {
     var id: String
     var name: String
