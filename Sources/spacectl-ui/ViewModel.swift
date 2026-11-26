@@ -108,6 +108,13 @@ final class StacksViewModel {
     var paletteSearching = false
     var paletteTask: Task<Void, Never>?
 
+    // Release update check (behaviour lives in Updates.swift)
+    var availableUpdate: ReleaseUpdate?
+    var checkingForUpdates = false
+    var updateCheckFailed = false
+    @ObservationIgnored var updateTask: Task<Void, Never>?
+    @ObservationIgnored var updateLoopTask: Task<Void, Never>?
+
     let logs = LogStreamer()
     let live = LogStreamer()
 
@@ -123,6 +130,8 @@ final class StacksViewModel {
         Task { endpoint = await Spacectl.currentEndpoint() }
         refreshWorkerPool()
         startWorkerPoolLoop()
+        checkForUpdates()
+        startUpdateLoop()
     }
 
     // MARK: Search

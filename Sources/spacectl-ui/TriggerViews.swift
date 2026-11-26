@@ -267,13 +267,51 @@ struct SettingsView: View {
     @Bindable var model: StacksViewModel
 
     var body: some View {
-        Form {
-            Toggle("Enable actions", isOn: $model.actionsEnabled)
-            Text("Off by default, so the app stays read-only. When on, you can Trigger a stack's first run, Retry a failed run, and Trigger several stacks from the Trigger tab. Every action asks for confirmation, and runs started here use your Spacelift permissions.")
-                .font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 16) {
+            Form {
+                Toggle("Enable actions", isOn: $model.actionsEnabled)
+                Text("Off by default, so the app stays read-only. When on, you can Trigger a stack's first run, Retry a failed run, and Trigger several stacks from the Trigger tab. Every action asks for confirmation, and runs started here use your Spacelift permissions.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Divider()
+
+            HStack(spacing: 8) {
+                Text("Version \(AppReleases.currentVersion)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Text("·")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                if model.checkingForUpdates {
+                    ProgressView().controlSize(.mini)
+                    Text("Checking for updates…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let update = model.availableUpdate {
+                    Button { model.openReleasesPage() } label: {
+                        Label("\(update.tag) available", systemImage: "arrow.up.right.square")
+                            .font(.caption.weight(.medium))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.teal)
+                } else if model.updateCheckFailed {
+                    Text("Could not check GitHub Releases")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Up to date")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Check for Updates") { model.checkForUpdates(manual: true) }
+                    .controlSize(.small)
+                    .disabled(model.checkingForUpdates)
+            }
         }
         .padding(20)
-        .frame(width: 440)
+        .frame(width: 460)
         .preferredColorScheme(.dark)
     }
 }

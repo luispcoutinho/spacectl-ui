@@ -154,14 +154,6 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    withAnimation(.easeOut(duration: 0.14)) { model.toggleSidebar() }
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .help(model.sidebarCollapsed ? "Expand sidebar (⌃⌘S)" : "Collapse sidebar (⌃⌘S)")
-            }
             ToolbarItemGroup(placement: .primaryAction) {
                 WorkerPoolStatusButton(model: model)
                 Button { model.openWorkerPoolsPage() } label: {
@@ -329,13 +321,67 @@ struct StackListView: View {
                     .frame(width: 34, height: 28)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 6))
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.border))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Theme.muted)
+            .foregroundStyle(model.paletteOpen ? Theme.accent : Theme.muted)
             .help("Command palette (⌘K)")
+
+            railSeparator
+
+            if let update = model.availableUpdate {
+                Button { model.openReleasesPage() } label: {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 15, weight: .semibold))
+                            .frame(width: 36, height: 34)
+                            .background(Theme.teal.opacity(0.16), in: RoundedRectangle(cornerRadius: 8))
+                            .foregroundStyle(Theme.teal)
+                        Circle()
+                            .fill(Theme.teal)
+                            .frame(width: 6, height: 6)
+                            .offset(x: -4, y: 4)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Update available (\(update.tag)) — click to open Releases")
+            }
+
+            SettingsLink {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 15))
+                    .frame(width: 36, height: 34)
+                    .foregroundStyle(Theme.muted)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Settings (⌘,)")
+
+            railSeparator
+
+            Button {
+                withAnimation(.easeOut(duration: 0.14)) { model.toggleSidebar() }
+            } label: {
+                Image(systemName: "sidebar.left")
+                    .font(.system(size: 15))
+                    .frame(width: 36, height: 34)
+                    .foregroundStyle(Theme.muted)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(model.sidebarCollapsed ? "Expand sidebar (⌃⌘S)" : "Collapse sidebar (⌃⌘S)")
         }
         .padding(.vertical, 10)
         .frame(maxHeight: .infinity)
+    }
+
+    private var railSeparator: some View {
+        Rectangle()
+            .fill(Theme.border)
+            .frame(height: 1)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 2)
     }
 
     private var middlePane: some View {

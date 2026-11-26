@@ -68,7 +68,7 @@ A stack with the state **None** has never run a tracked run. States are shown ti
 
 ## The window
 
-- **Left pane:** a permanent vertical icon rail on the far left (**Search**, **Favorites**, **Recent**, plus **Trigger** when actions are enabled, and a **⌘** command palette button at the bottom) next to a collapsible, resizable middle pane showing the active mode's header, search/list, and footer (item count and **Clear history** in Recent). Click any mode icon to open or switch the middle pane; click the active mode icon again, click the top-left sidebar button, or press **⌃⌘S** to collapse the middle pane so only the icon rail remains.
+- **Left pane:** a permanent vertical icon rail on the far left (**Search**, **Favorites**, **Recent**, plus **Trigger** when actions are enabled at the top; and in the lower-left corner, from top to bottom: **⌘** command palette, a separator, an **Update available** icon when a newer GitHub Release exists, **Settings**, a separator, and the **Collapse/Expand sidebar** button) next to a collapsible, resizable middle pane showing the active mode's header, search/list, and footer (item count and **Clear history** in Recent). Click any mode icon to open or switch the middle pane; click the active mode icon again, click the lower-left collapse button, or press **⌃⌘S** to collapse the middle pane so only the icon rail remains.
 - **Right pane:** the open stack: a header, a row of tabs, and the tab's content. With no stack open it shows "Select a stack".
 - **Top-right toolbar:** status of the account's default worker pool (`busy/registered` workers and queued runs, with a green/orange/red health dot; hover for full details, click to refresh) and an external-link button that opens `<endpoint>/worker-pools` in your browser. The app picks the pool whose name contains `default` (case-insensitive), falling back to the largest private pool, or to the public worker pool when no private pools exist.
 - The app uses a dark theme. The minimum window size is 1200 by 650.
@@ -367,7 +367,7 @@ Preview is the default because it cannot change infrastructure. The line under t
 
 ## How the app gets its data
 
-Every read is a `spacectl` command. The app never contacts Spacelift directly.
+Every Spacelift read is a `spacectl` command; the app never contacts Spacelift directly. Separately, it checks GitHub Releases (`api.github.com/repos/luispcoutinho/spacectl-ui/releases/latest`) on launch, every 6 hours, and when you click **Check for Updates** in Settings, showing an update icon in the lower-left rail when a newer version is available (failing silently if offline).
 
 | What you see | Command | When it runs |
 |---|---|---|
