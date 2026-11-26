@@ -68,7 +68,7 @@ A stack with the state **None** has never run a tracked run. States are shown ti
 
 ## The window
 
-- **Left pane:** finding stacks. A **Search | Favorites | Recent** switch, plus a **Trigger** segment when actions are enabled. The footer shows how many stacks are listed, a **Clear history** link in Recent, and a ⌘K button.
+- **Left pane:** a permanent vertical icon rail on the far left (**Search**, **Favorites**, **Recent**, plus **Trigger** when actions are enabled, and a **⌘** command palette button at the bottom) next to a collapsible, resizable middle pane showing the active mode's header, search/list, and footer (item count and **Clear history** in Recent). Click any mode icon to open or switch the middle pane; click the active mode icon again, click the top-left sidebar button, or press **⌃⌘S** to collapse the middle pane so only the icon rail remains.
 - **Right pane:** the open stack: a header, a row of tabs, and the tab's content. With no stack open it shows "Select a stack".
 - **Top-right toolbar:** status of the account's default worker pool (`busy/registered` workers and queued runs, with a green/orange/red health dot; hover for full details, click to refresh) and an external-link button that opens `<endpoint>/worker-pools` in your browser. The app picks the pool whose name contains `default` (case-insensitive), falling back to the largest private pool, or to the public worker pool when no private pools exist.
 - The app uses a dark theme. The minimum window size is 1200 by 650.
@@ -100,7 +100,7 @@ A stack with the state **None** has never run a tracked run. States are shown ti
 
 ## Command palette
 
-Press **⌘K** (or click the ⌘K button in the sidebar footer). Press ⌘K again or Esc to close it.
+Press **⌘K** (or click the **⌘** button at the bottom of the left icon rail). Press ⌘K again or Esc to close it.
 
 | What you type | What you get |
 |---|---|
@@ -296,7 +296,7 @@ Repeats a failed run (`spacectl stack retry`) at its original commit.
 
 ### Trigger tab (many stacks)
 
-Starts a run on each selected stack. It is a segment in the sidebar's switch, visible only with actions enabled. A switch at the top picks the action for the whole batch:
+Starts a run on each selected stack. It is an item in the sidebar's vertical navigation, visible only with actions enabled. A switch at the top picks the action for the whole batch:
 
 | Action | What it starts | Command | Applies changes? |
 |---|---|---|---|
@@ -399,6 +399,7 @@ Notes:
 | Shortcut | Action |
 |---|---|
 | ⌘K | Open or close the command palette |
+| ⌃⌘S | Collapse or expand the left sidebar |
 | ⌘R | Refresh the open stack and worker pool status |
 | ⌘I | Toggle run details (Run history tab) |
 | ⌘F | Find in logs |
@@ -408,7 +409,7 @@ Notes:
 
 ## Stored data and reset
 
-The app stores three things in macOS preferences under `io.github.luispcoutinho.spacectl-ui`: your favorite stacks (IDs), the recent stacks (IDs and times) and the "Enable actions" setting. It stores no credentials: authentication belongs to `spacectl` and its own configuration. It writes no files of its own.
+The app stores your favorite stacks (IDs), recent stacks (IDs and times), sidebar layout preferences (collapsed state and width), and the "Enable actions" setting in macOS preferences under `io.github.luispcoutinho.spacectl-ui`. It stores no credentials: authentication belongs to `spacectl` and its own configuration. It writes no files of its own.
 
 To reset everything (favorites, history, and actions back to off):
 

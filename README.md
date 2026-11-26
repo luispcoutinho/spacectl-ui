@@ -10,6 +10,7 @@ The full [user manual](MANUAL.md) describes every feature, edge case, and condit
 
 ### Finding and organizing stacks
 
+- **Collapsible vertical sidebar**: switch between **Search**, **Favorites**, **Recent**, and **Trigger** (when actions are enabled) from the vertical icon rail on the far left, which opens a resizable middle list pane; click the active icon again (or press `⌃⌘S` / the top-left sidebar button) to collapse back to icons only.
 - **Search**: debounced server-side stack search (`2+` characters, up to `200` results) showing a colored state dot, stack ID, live state, tracked commit author, and favorite indicator (`★`).
 - **Favorites**: dedicated alphabetical list of your starred stacks. Star or unstar the open stack in its header (`★`) or right-click any stack in **Search**, **Favorites**, or **Recent**.
 - **Recent**: keeps the last `30` stacks you opened with relative timestamps ("just now", "2 hours ago"). Remove individual entries from the right-click menu or use **Clear history** in the sidebar footer.
@@ -17,9 +18,9 @@ The full [user manual](MANUAL.md) describes every feature, edge case, and condit
 
 ### Command palette (`⌘K`)
 
-Press `⌘K` (or click the `⌘K` button in the sidebar footer) to jump between tabs, refresh the open stack, open **Favorite** or **Recent** stacks, filter loaded sidebar stacks locally, or search stacks on the server (`2+` characters, up to `30` results). Multi-word queries match all words; use `↑`/`↓` and `↵` to pick, or `Esc` to dismiss.
+Press `⌘K` (or click the `⌘` button at the bottom of the left icon rail) to jump between tabs, refresh the open stack, open **Favorite** or **Recent** stacks, filter loaded sidebar stacks locally, or search stacks on the server (`2+` characters, up to `30` results). Multi-word queries match all words; use `↑`/`↓` and `↵` to pick, or `Esc` to dismiss.
 
-![Command palette](docs/screenshots/command-palette.png)
+![Command palette with collapsed sidebar icon rail](docs/screenshots/command-palette.png)
 
 ### Default worker pool toolbar
 
@@ -64,6 +65,7 @@ Turn on **Settings (`⌘,`) > Enable actions** to unlock write operations. Actio
 | Shortcut | Action |
 |---|---|
 | `⌘K` | Open or close the command palette |
+| `⌃⌘S` | Collapse or expand the left sidebar |
 | `⌘R` | Refresh the open stack and default worker pool status |
 | `⌘I` | Toggle the selected run's details popover (Run history) |
 | `⌘F` | Find in Logs / Live logs |
@@ -98,7 +100,7 @@ Because macOS GUI apps do not inherit your shell `PATH`, the app looks for `spac
 
 ## Stored data
 
-The app stores only favorite stack IDs, recent stack IDs with open timestamps, and the **Enable actions** toggle in macOS preferences (`io.github.luispcoutinho.spacectl-ui`). No credentials or stack states are persisted locally. To reset everything:
+The app stores only favorite stack IDs, recent stack IDs with open timestamps, sidebar layout preferences, and the **Enable actions** toggle in macOS preferences (`io.github.luispcoutinho.spacectl-ui`). No credentials or stack states are persisted locally. To reset everything:
 
 ```bash
 defaults delete io.github.luispcoutinho.spacectl-ui

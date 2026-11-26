@@ -71,3 +71,14 @@ extension DetailTab {
         }
     }
 }
+
+extension SidebarMode {
+    var icon: String {
+        switch self {
+        case .search: return "magnifyingglass"
+        case .favorites: return "star"
+        case .recent: return "clock"
+        case .trigger: return "play.fill"
+        }
+    }
+}

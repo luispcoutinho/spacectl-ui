@@ -87,4 +87,8 @@ extension StacksViewModel {
         if viaEscape, NSApp.keyWindow?.firstResponder is NSText { return }
         selectedID = nil
     }
+
+    func toggleSidebar() {
+        sidebarCollapsed.toggle()
+    }
 }
