@@ -10,7 +10,7 @@ The full [user manual](MANUAL.md) describes every feature, edge case, and condit
 
 ### Finding and organizing stacks
 
-- **Collapsible vertical sidebar**: switch between **Search**, **Favorites**, **Recent**, and **Trigger** (when actions are enabled) from the vertical icon rail on the far left, which opens a resizable middle list pane; click the active icon again (or press `⌃⌘S` / the top-left sidebar button) to collapse back to icons only.
+- **Collapsible vertical sidebar**: switch between **Search**, **Favorites**, **Recent**, and **Trigger** (when actions are enabled) from the vertical icon rail on the far left, which opens a resizable middle list pane; click the active icon again, click the lower-left collapse button, or press `⌃⌘S` to collapse back to icons only. The lower-left rail also houses the `⌘` command palette button, an **Update available** notification badge (shown when a newer GitHub Release exists), and **Settings**.
 - **Search**: debounced server-side stack search (`2+` characters, up to `200` results) showing a colored state dot, stack ID, live state, tracked commit author, and favorite indicator (`★`).
 - **Favorites**: dedicated alphabetical list of your starred stacks. Star or unstar the open stack in its header (`★`) or right-click any stack in **Search**, **Favorites**, or **Recent**.
 - **Recent**: keeps the last `30` stacks you opened with relative timestamps ("just now", "2 hours ago"). Remove individual entries from the right-click menu or use **Clear history** in the sidebar footer.
