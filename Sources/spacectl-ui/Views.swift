@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - Small shared pieces
@@ -130,10 +131,11 @@ struct ContentView: View {
     var model: StacksViewModel
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             StackListView(model: model)
-                .navigationSplitViewColumnWidth(min: 300, ideal: 380)
-        } detail: {
+            if !model.sidebarCollapsed {
+                SidebarDivider(model: model)
+            }
             Group {
                 if let id = model.selectedID {
                     StackDetailView(model: model, stackID: id)
@@ -149,17 +151,27 @@ struct ContentView: View {
                         }
                 }
             }
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    WorkerPoolStatusButton(model: model)
-                    Button { model.openWorkerPoolsPage() } label: {
-                        Image(systemName: "arrow.up.right.square")
-                    }
-                    .disabled(model.spacectlMissing)
-                    .help("Open worker pools in browser")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    withAnimation(.easeOut(duration: 0.14)) { model.toggleSidebar() }
+                } label: {
+                    Image(systemName: "sidebar.left")
                 }
+                .help(model.sidebarCollapsed ? "Expand sidebar (⌃⌘S)" : "Collapse sidebar (⌃⌘S)")
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                WorkerPoolStatusButton(model: model)
+                Button { model.openWorkerPoolsPage() } label: {
+                    Image(systemName: "arrow.up.right.square")
+                }
+                .disabled(model.spacectlMissing)
+                .help("Open worker pools in browser")
             }
         }
+        .toolbarBackground(Theme.bg, for: .windowToolbar)
         .frame(minWidth: 1200, minHeight: 650)
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
@@ -220,33 +232,150 @@ struct ContentView: View {
 
 // MARK: - Sidebar
 
+struct SidebarDivider: View {
+    var model: StacksViewModel
+
+    var body: some View {
+        Rectangle()
+            .fill(Theme.border)
+            .frame(width: 1)
+            .overlay {
+                if !model.sidebarCollapsed {
+                    Color.clear
+                        .frame(width: 7)
+                        .contentShape(Rectangle())
+                        .onHover { inside in
+                            if inside { NSCursor.resizeLeftRight.set() } else { NSCursor.arrow.set() }
+                        }
+                        .gesture(
+                            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                                .onChanged { value in
+                                    let start = model.sidebarDragStartWidth ?? model.sidebarWidth
+                                    model.sidebarDragStartWidth = start
+                                    let next = start + value.translation.width
+                                    model.sidebarWidth = min(max(next, StacksViewModel.minSidebarWidth),
+                                                             StacksViewModel.maxSidebarWidth)
+                                }
+                                .onEnded { _ in
+                                    model.sidebarDragStartWidth = nil
+                                }
+                        )
+                }
+            }
+    }
+}
+
 struct StackListView: View {
     @Bindable var model: StacksViewModel
 
+    private var visibleModes: [SidebarMode] {
+        SidebarMode.allCases.filter { $0 != .trigger || model.actionsEnabled }
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 10) {
-                Picker("", selection: $model.sidebarMode) {
-                    ForEach(SidebarMode.allCases.filter { $0 != .trigger || model.actionsEnabled }) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented).labelsHidden()
-                if (model.sidebarMode == .search || model.sidebarMode == .trigger) && model.triggerBatch.isEmpty { searchField }
+        HStack(spacing: 0) {
+            iconRail
+                .frame(width: StacksViewModel.sidebarRailWidth)
+            Rectangle()
+                .fill(Theme.border)
+                .frame(width: 1)
+            if !model.sidebarCollapsed {
+                middlePane
+                    .frame(width: model.sidebarWidth)
             }
-            .padding(12)
-
-            switch model.sidebarMode {
-            case .search: searchList
-            case .favorites: favoritesList
-            case .recent: recentList
-            case .trigger: TriggerListView(model: model)
-            }
-
-            footer
         }
+        .frame(maxHeight: .infinity)
         .background(Theme.sidebar)
         .onChange(of: model.query) { model.queryChanged() }
         .onChange(of: model.selectedID) { model.selectionChanged() }
-        .navigationTitle("Spacelift Stacks")
+    }
+
+    private var iconRail: some View {
+        VStack(spacing: 6) {
+            ForEach(visibleModes) { mode in
+                let active = !model.sidebarCollapsed && model.sidebarMode == mode
+                Button {
+                    withAnimation(.easeOut(duration: 0.14)) {
+                        if !model.sidebarCollapsed && model.sidebarMode == mode {
+                            model.sidebarCollapsed = true
+                        } else {
+                            model.sidebarMode = mode
+                            model.sidebarCollapsed = false
+                        }
+                    }
+                } label: {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: mode.icon)
+                            .font(.system(size: 15, weight: active ? .semibold : .regular))
+                            .frame(width: 36, height: 34)
+                            .background(active ? Theme.accent.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 8))
+                            .foregroundStyle(active ? Theme.accent : Theme.muted)
+                        if mode == .trigger && model.triggerRunning {
+                            Circle()
+                                .fill(Theme.accent)
+                                .frame(width: 6, height: 6)
+                                .offset(x: -4, y: 4)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(active ? "Collapse \(mode.rawValue)" : mode.rawValue)
+            }
+            Spacer()
+            Button { model.togglePalette() } label: {
+                Image(systemName: "command")
+                    .font(.caption.weight(.semibold))
+                    .frame(width: 34, height: 28)
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 6))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.border))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.muted)
+            .help("Command palette (⌘K)")
+        }
+        .padding(.vertical, 10)
+        .frame(maxHeight: .infinity)
+    }
+
+    private var middlePane: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: model.sidebarMode.icon)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+                Text(model.sidebarMode.rawValue)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Spacer()
+                if model.sidebarMode == .trigger && model.triggerRunning {
+                    ProgressView().controlSize(.mini)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+
+            Divider().overlay(Theme.border)
+
+            if (model.sidebarMode == .search || model.sidebarMode == .trigger) && model.triggerBatch.isEmpty {
+                searchField.padding(12)
+            }
+
+            Group {
+                switch model.sidebarMode {
+                case .search: searchList
+                case .favorites: favoritesList
+                case .recent: recentList
+                case .trigger:
+                    TriggerListView(model: model)
+                        .padding(.top, model.triggerBatch.isEmpty ? 0 : 10)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            footer
+        }
+        .frame(maxHeight: .infinity)
     }
 
     private var searchField: some View {
@@ -341,15 +470,6 @@ struct StackListView: View {
                 }
             }
             Spacer()
-            Button { model.togglePalette() } label: {
-                HStack(spacing: 4) { Image(systemName: "command"); Text("K") }
-                    .font(.caption.weight(.medium))
-                    .padding(.horizontal, 7).padding(.vertical, 3)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.border))
-            }
-            .buttonStyle(.plain).foregroundStyle(Theme.muted)
-            .help("Command palette (⌘K)")
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(Theme.sidebar)
@@ -504,7 +624,6 @@ struct StackDetailView: View {
                 .keyboardShortcut(.escape, modifiers: [])
                 .opacity(0).frame(width: 0, height: 0)
         }
-        .navigationTitle("")
         .onAppear { model.ensure(model.tab) }
         .onChange(of: model.tab) { model.ensure(model.tab) }
     }

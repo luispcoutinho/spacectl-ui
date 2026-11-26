@@ -9,6 +9,12 @@ struct SpacectlUIApp: App {
             ContentView(model: model)
         }
         .commands {
+            CommandGroup(after: .sidebar) {
+                Button(model.sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar") {
+                    withAnimation(.easeOut(duration: 0.14)) { model.toggleSidebar() }
+                }
+                .keyboardShortcut("s", modifiers: [.command, .control])
+            }
             CommandGroup(after: .textEditing) {
                 Button("Command Palette…") { model.togglePalette() }
                     .keyboardShortcut("k", modifiers: .command)

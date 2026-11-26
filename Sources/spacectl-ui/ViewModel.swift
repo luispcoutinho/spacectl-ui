@@ -62,7 +62,22 @@ final class StacksViewModel {
     var environment: Load<[EnvRow]> = .idle
 
     // Sidebar: search results, favorites or previously opened stacks (behaviour lives in Recents.swift)
+    static let minSidebarWidth: CGFloat = 280
+    static let maxSidebarWidth: CGFloat = 500
+    static let defaultSidebarWidth: CGFloat = 340
+    static let sidebarRailWidth: CGFloat = 52
+
     var sidebarMode: SidebarMode = .search
+    var sidebarCollapsed = UserDefaults.standard.bool(forKey: "sidebarCollapsed") {
+        didSet { UserDefaults.standard.set(sidebarCollapsed, forKey: "sidebarCollapsed") }
+    }
+    var sidebarWidth: CGFloat = {
+        let saved = UserDefaults.standard.double(forKey: "sidebarWidth")
+        return saved > 0 ? min(max(CGFloat(saved), minSidebarWidth), maxSidebarWidth) : defaultSidebarWidth
+    }() {
+        didSet { UserDefaults.standard.set(Double(sidebarWidth), forKey: "sidebarWidth") }
+    }
+    @ObservationIgnored var sidebarDragStartWidth: CGFloat?
     var favorites: [String] = FavoriteStacks.load()
     var recents: [RecentStack] = RecentStack.load()
 
